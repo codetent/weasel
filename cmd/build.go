@@ -49,28 +49,30 @@ var buildCmd = &cobra.Command{
 	
 This command supports multiple input sources.
 They are differented by specifying a prefix before the argument.
-- "docker:<value>" - Docker image using Dockerfile. The value is a path to an existing directory (context).
-- "<value>" - Docker image from docker hub. The value is the tag of a public available image.`,
+- "context:<value>" - Docker image using Dockerfile. The value is a path to an existing directory (context).
+- "hub:<value>" - Docker image from docker hub. The value is the tag of a public available image.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var ref string
 		var stream io.ReadCloser
 		var err error
 
-		if strings.HasPrefix(args[0], "docker:") {
-			contextPath := strings.TrimPrefix(args[0], "docker:")
+		if strings.HasPrefix(args[0], "context:") {
+			contextPath := strings.TrimPrefix(args[0], "context:")
 
 			ref = xid.New().String()
 			stream, err = BuildDockerImage(contextPath, ref)
 			if err != nil {
 				log.Fatalf("Error building image: %v", err)
 			}
-		} else {
-			ref = args[0]
+		} else if strings.HasPrefix(args[0], "hub:") {
+			ref = strings.TrimPrefix(args[0], "hub:")
 			stream, err = docker.ImagePull(ref)
 			if err != nil {
 				log.Fatalf("Error pulling image: %v", err)
 			}
+		} else {
+			log.Fatalf("Unknown specifier '%s'", args[0])
 		}
 
 		defer stream.Close()
