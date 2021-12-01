@@ -50,18 +50,3 @@ func GetWorkspaceRoot() (string, error) {
 
 	return path, nil
 }
-
-func GetBuilderRoot() (string, error) {
-	root, err := GetCacheRoot()
-	if err != nil {
-		return "", fmt.Errorf("GetBuilderRoot: GetCacheRoot(): %v", err)
-	}
-
-	path := filepath.Join(root, "builder")
-	err = os.MkdirAll(path, os.ModePerm)
-	if err != nil {
-		return "", fmt.Errorf("GetBuilderRoot: MkdirAll(): %v", err)
-	}
-
-	return path, nil
-}
