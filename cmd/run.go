@@ -19,107 +19,99 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand"
-	"path/filepath"
-
-	//"fmt"
-
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/codetent/weasel/pkg/weasel/store"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
+
+	log "github.com/sirupsen/logrus"
+)
+
+var (
+	User        string
+	AttachStdin bool
 )
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Args: cobra.MinimumNArgs(1),
+	Short: "Run a new instance of a distribution",
+	Long:  "Create a new instance of an available distribution. This command also opens up an interactive session to it.",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Extract parameters
 		distId := args[0]
-		instanceId, _ := cmd.Flags().GetString("name")
-		autoRemove, _ := cmd.Flags().GetBool("rm")
-		user, _ := cmd.Flags().GetString("user")
-		attachStdin, _ := cmd.Flags().GetBool("stdin")
-
-		if instanceId == "" {
-			instanceId = RandomId()
-		}
+		instanceId := RandomId()
 
 		// Get path to distribution archive
 		distArchive, err := store.GetRegisteredDistribution(distId)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error finding distribution: %v", err)
 		}
 		if distArchive == "" {
-			fmt.Printf("Distribution with id '%s' not found.\n", distId)
-			os.Exit(1)
+			log.Fatalf("Distribution with id '%s' not found", distId)
 		}
 
 		// Get path to workspace
 		workspaceRoot, err := store.GetWorkspaceRoot()
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error location workspace root: %v", err)
 		}
 		distWorkspace := filepath.Join(workspaceRoot, instanceId)
 		err = os.MkdirAll(distWorkspace, os.ModePerm)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error creating workspace: %v", err)
 		}
-		if autoRemove {
-			defer os.RemoveAll(distWorkspace)
-		}
+		defer os.RemoveAll(distWorkspace)
 
 		// Load distribution archive into WSL
 		err = wsl.Import(instanceId, distWorkspace, distArchive)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error loading instance: %v", err)
 		}
+		defer func() {
+			err := wsl.Unregister(instanceId)
+			if err != nil {
+				log.Errorf("Error unloading instance: %v", err)
+			}
+		}()
 
 		// Register created WSL instance
 		err = store.RegisterInstance(instanceId, distId)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error registering instance: %v", err)
 		}
+		defer func() {
+			log.Info("here")
+			err := store.UnregisterInstance(instanceId)
+			if err != nil {
+				log.Errorf("Error unregistering instance: %v", err)
+			}
+		}()
 
 		// Run instance
-		err = wsl.Run(instanceId, &wsl.RunOpts{
-			User:        user,
-			AttachStdin: attachStdin,
+		code, err := wsl.Run(instanceId, &wsl.RunOpts{
+			User:        User,
+			AttachStdin: AttachStdin,
 		}, args[1:]...)
-
-		// Fixme check error
-
-		// Remove instance after using it
-		if autoRemove {
-			err = wsl.Unregister(instanceId)
+		if code < 0 {
 			if err != nil {
-				panic(err)
+				log.Fatalf("Error running instance: %v", err)
 			}
-
-			err = store.UnregisterInstance(instanceId)
-			if err != nil {
-				panic(err)
-			}
+			code = 1
 		}
+
+		os.Exit(code)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.Flags().StringP("user", "u", "", "Sets the username for the specified command.")
-	runCmd.Flags().String("name", "", "Sets the name of the instance.")
-	runCmd.Flags().BoolP("stdin", "i", false, "Attach to STDIN.")
-	runCmd.Flags().Bool("rm", false, "Automatically remove when it exits.")
+	runCmd.Flags().StringVarP(&User, "user", "u", "", "Sets the username for the specified command.")
+	runCmd.Flags().BoolVarP(&AttachStdin, "stdin", "i", false, "Attach to STDIN.")
 }
 
 func RandomId() string {
