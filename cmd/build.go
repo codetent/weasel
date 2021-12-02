@@ -78,10 +78,16 @@ They are differented by specifying a prefix before the argument.
 				log.Errorf("Unknown specifier %s", args[0])
 				return 1
 			}
-
 			defer stream.Close()
-			termFd, isTerm := term.GetFdInfo(os.Stdout)
-			jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, termFd, isTerm, nil)
+
+			// Show live build output
+			outStream := os.Stdout
+			if ErrorsOnly {
+				outStream, _ = os.Open(os.DevNull)
+				defer outStream.Close()
+			}
+			termFd, isTerm := term.GetFdInfo(outStream)
+			jsonmessage.DisplayJSONMessagesStream(stream, outStream, termFd, isTerm, nil)
 
 			// Get image id
 			imageId, err := docker.ImageIdByTag(ref)

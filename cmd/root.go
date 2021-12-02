@@ -24,6 +24,7 @@ import (
 )
 
 var (
+	ErrorsOnly    bool
 	EnableVerbose bool
 )
 
@@ -42,7 +43,9 @@ var rootCmd = &cobra.Command{
 			DisableLevelTruncation: true,
 		})
 
-		if EnableVerbose {
+		if ErrorsOnly {
+			log.SetLevel(log.ErrorLevel)
+		} else if EnableVerbose {
 			log.SetLevel(log.DebugLevel)
 		} else {
 			log.SetLevel(log.InfoLevel)
@@ -56,6 +59,7 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	rootCmd.PersistentFlags().BoolVar(&ErrorsOnly, "errors-only", false, "Only show errors")
 	rootCmd.PersistentFlags().BoolVarP(&EnableVerbose, "verbose", "v", false, "Enable verbose output")
 
 	cobra.CheckErr(rootCmd.Execute())
