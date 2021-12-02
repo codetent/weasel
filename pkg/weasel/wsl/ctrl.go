@@ -57,7 +57,7 @@ func Unregister(id string) error {
 	return nil
 }
 
-func Run(id string, opts *RunOpts, arg ...string) error {
+func Run(id string, opts *RunOpts, arg ...string) (int, error) {
 	optArgs := []string{"--distribution", id}
 
 	if opts.User != "" {
@@ -73,10 +73,25 @@ func Run(id string, opts *RunOpts, arg ...string) error {
 	}
 
 	err := cmd.Run()
+	code := cmd.ProcessState.ExitCode()
 	if err != nil {
-		return fmt.Errorf("Run: Run(): %v", err)
+		return code, fmt.Errorf("Run: Run(): %v", err)
 	}
 
+	return code, nil
+}
+
+func Terminate(id string) error {
+	cmd := CreateWSLCommand("--terminate", id)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			log.Error(string(exitError.Stderr))
+		}
+		return fmt.Errorf("Terminate: Output(): %v", err)
+	}
+
+	log.Debug(string(out))
 	return nil
 }
 
