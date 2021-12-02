@@ -20,47 +20,28 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/codetent/weasel/pkg/weasel/store"
 	"github.com/spf13/cobra"
 
-	"github.com/codetent/weasel/pkg/weasel/store"
-	"github.com/codetent/weasel/pkg/weasel/wsl"
+	log "github.com/sirupsen/logrus"
 )
 
 // lsCmd represents the ls command
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "List built distributions",
+	Long:  "List all distributions built available for creating instances from them.",
 	Run: func(cmd *cobra.Command, args []string) {
-		allInstances, err := store.GetRegisteredInstances()
+		dists, err := store.GetRegisteredDistributions()
 		if err != nil {
-			panic(err)
-		}
-
-		runningInstances, err := wsl.ListRunning()
-		if err != nil {
-			panic(err)
+			log.Errorf("Error reading distributions: %v", err)
 		}
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintln(writer, "ID\tDISTRIBUTION\tSTATE")
+		fmt.Fprintln(writer, "ID")
 
-		for _, inst := range allInstances {
-			state := "Stopped"
-
-			for _, other := range runningInstances {
-				if other == inst.Id {
-					state = "Running"
-					break
-				}
-			}
-
-			fmt.Fprintf(writer, "%s\t%s\t%s\n", inst.Id, inst.Distribution, state)
+		for _, dist := range dists {
+			fmt.Fprintln(writer, dist.Id)
 		}
 
 		writer.Flush()
