@@ -142,5 +142,5 @@ func ImageIdByTag(tag string) (string, error) {
 	}
 
 	idValue := strings.SplitN(images[0].ID, ":", 2)
-	return idValue[1], nil
+	return idValue[1][:12], nil
 }

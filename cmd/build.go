@@ -22,12 +22,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/codetent/weasel/pkg/weasel"
 	"github.com/codetent/weasel/pkg/weasel/docker"
 	"github.com/codetent/weasel/pkg/weasel/store"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/term"
-	"github.com/rs/xid"
 	"github.com/spf13/cobra"
 
 	log "github.com/sirupsen/logrus"
@@ -61,7 +61,7 @@ They are differented by specifying a prefix before the argument.
 			if strings.HasPrefix(args[0], "context:") {
 				contextPath := strings.TrimPrefix(args[0], "context:")
 
-				ref = xid.New().String()
+				ref = weasel.GenerateId()
 				stream, err = buildDockerImage(contextPath, ref)
 				if err != nil {
 					log.Errorf("Error building image: %v", err)
@@ -75,7 +75,7 @@ They are differented by specifying a prefix before the argument.
 					return 1
 				}
 			} else {
-				log.Errorf("Unknown specifier '%s'", args[0])
+				log.Errorf("Unknown specifier %s", args[0])
 				return 1
 			}
 
@@ -115,7 +115,7 @@ They are differented by specifying a prefix before the argument.
 					return 1
 				}
 
-				log.Infof("Registered tag '%s' for distribution", tag)
+				log.Infof("Registered tag %s for distribution", tag)
 			}
 
 			return 0

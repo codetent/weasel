@@ -16,14 +16,12 @@ limitations under the License.
 package cmd
 
 import (
-	"crypto/sha256"
-	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/codetent/weasel/pkg/weasel"
 	"github.com/codetent/weasel/pkg/weasel/store"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
 
@@ -44,7 +42,7 @@ var runCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		code := func() int {
 			distId := args[0]
-			instanceId := RandomId()
+			instanceId := weasel.GenerateId()
 
 			// Get path to distribution archive
 			distArchive, err := store.GetRegisteredDistribution(distId)
@@ -53,7 +51,7 @@ var runCmd = &cobra.Command{
 				return 1
 			}
 			if distArchive == "" {
-				log.Errorf("Distribution with id '%s' not found", distId)
+				log.Errorf("Distribution with id %s not found", distId)
 				return 1
 			}
 
@@ -121,12 +119,4 @@ func init() {
 
 	runCmd.Flags().StringVarP(&User, "user", "u", "", "Sets the username for the specified command.")
 	runCmd.Flags().BoolVarP(&AttachStdin, "stdin", "i", false, "Attach to STDIN.")
-}
-
-func RandomId() string {
-	data := make([]byte, 10)
-	for i := range data {
-		data[i] = byte(rand.Intn(256))
-	}
-	return fmt.Sprintf("%x", sha256.Sum256(data))[:7]
 }

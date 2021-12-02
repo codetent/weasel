@@ -37,7 +37,7 @@ func OpenDatabase() (*bolt.DB, error) {
 		for _, bucket := range []string{BucketDistributions, BucketInstances} {
 			_, err := tx.CreateBucketIfNotExists([]byte(bucket))
 			if err != nil {
-				return fmt.Errorf("create bucket '%s': %v", bucket, err)
+				return fmt.Errorf("create bucket %s: %v", bucket, err)
 			}
 		}
 		return nil
