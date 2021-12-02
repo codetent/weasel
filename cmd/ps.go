@@ -34,34 +34,40 @@ var psCmd = &cobra.Command{
 	Short: "List running instances",
 	Long:  "Shows all running instances together with their distribution.",
 	Run: func(cmd *cobra.Command, args []string) {
-		allInstances, err := store.GetRegisteredInstances()
-		if err != nil {
-			log.Fatalf("Error reading registered instances: %v", err)
-		}
+		code := func() int {
+			allInstances, err := store.GetRegisteredInstances()
+			if err != nil {
+				log.Errorf("Error reading registered instances: %v", err)
+				return 1
+			}
 
-		runningInstances, err := wsl.ListRunning()
-		if err != nil {
-			log.Fatalf("Error reading running instances: %v", err)
-		}
+			runningInstances, err := wsl.ListRunning()
+			if err != nil {
+				log.Errorf("Error reading running instances: %v", err)
+				return 1
+			}
 
-		writer := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintln(writer, "ID\tDISTRIBUTION")
+			writer := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+			fmt.Fprintln(writer, "ID\tDISTRIBUTION")
 
-		for _, inst := range allInstances {
-			running := false
-			for _, other := range runningInstances {
-				if other == inst.Id {
-					running = true
-					break
+			for _, inst := range allInstances {
+				running := false
+				for _, other := range runningInstances {
+					if other == inst.Id {
+						running = true
+						break
+					}
+				}
+
+				if running {
+					fmt.Fprintf(writer, "%s\t%s\n", inst.Id, inst.Distribution)
 				}
 			}
 
-			if running {
-				fmt.Fprintf(writer, "%s\t%s\n", inst.Id, inst.Distribution)
-			}
-		}
-
-		writer.Flush()
+			writer.Flush()
+			return 0
+		}()
+		os.Exit(code)
 	},
 }
 

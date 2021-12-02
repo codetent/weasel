@@ -42,67 +42,76 @@ var runCmd = &cobra.Command{
 	Long:  "Create a new instance of an available distribution. This command also opens up an interactive session to it.",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		distId := args[0]
-		instanceId := RandomId()
+		code := func() int {
+			distId := args[0]
+			instanceId := RandomId()
 
-		// Get path to distribution archive
-		distArchive, err := store.GetRegisteredDistribution(distId)
-		if err != nil {
-			log.Fatalf("Error finding distribution: %v", err)
-		}
-		if distArchive == "" {
-			log.Fatalf("Distribution with id '%s' not found", distId)
-		}
-
-		// Get path to workspace
-		workspaceRoot, err := store.GetWorkspaceRoot()
-		if err != nil {
-			log.Fatalf("Error location workspace root: %v", err)
-		}
-		distWorkspace := filepath.Join(workspaceRoot, instanceId)
-		err = os.MkdirAll(distWorkspace, os.ModePerm)
-		if err != nil {
-			log.Fatalf("Error creating workspace: %v", err)
-		}
-		defer os.RemoveAll(distWorkspace)
-
-		// Load distribution archive into WSL
-		err = wsl.Import(instanceId, distWorkspace, distArchive)
-		if err != nil {
-			log.Fatalf("Error loading instance: %v", err)
-		}
-		defer func() {
-			err := wsl.Unregister(instanceId)
+			// Get path to distribution archive
+			distArchive, err := store.GetRegisteredDistribution(distId)
 			if err != nil {
-				log.Errorf("Error unloading instance: %v", err)
+				log.Errorf("Error finding distribution: %v", err)
+				return 1
 			}
+			if distArchive == "" {
+				log.Errorf("Distribution with id '%s' not found", distId)
+				return 1
+			}
+
+			// Get path to workspace
+			workspaceRoot, err := store.GetWorkspaceRoot()
+			if err != nil {
+				log.Errorf("Error location workspace root: %v", err)
+				return 1
+			}
+			distWorkspace := filepath.Join(workspaceRoot, instanceId)
+			err = os.MkdirAll(distWorkspace, os.ModePerm)
+			if err != nil {
+				log.Errorf("Error creating workspace: %v", err)
+				return 1
+			}
+			defer os.RemoveAll(distWorkspace)
+
+			// Load distribution archive into WSL
+			err = wsl.Import(instanceId, distWorkspace, distArchive)
+			if err != nil {
+				log.Errorf("Error loading instance: %v", err)
+				return 1
+			}
+			defer func() {
+				err := wsl.Unregister(instanceId)
+				if err != nil {
+					log.Errorf("Error unloading instance: %v", err)
+				}
+			}()
+
+			// Register created WSL instance
+			err = store.RegisterInstance(instanceId, distId)
+			if err != nil {
+				log.Errorf("Error registering instance: %v", err)
+				return 1
+			}
+			defer func() {
+				err := store.UnregisterInstance(instanceId)
+				if err != nil {
+					log.Errorf("Error unregistering instance: %v", err)
+				}
+			}()
+
+			// Run instance
+			code, err := wsl.Run(instanceId, &wsl.RunOpts{
+				User:        User,
+				AttachStdin: AttachStdin,
+			}, args[1:]...)
+			if code < 0 {
+				if err != nil {
+					log.Errorf("Error running instance: %v", err)
+					return 1
+				}
+				code = 1
+			}
+
+			return code
 		}()
-
-		// Register created WSL instance
-		err = store.RegisterInstance(instanceId, distId)
-		if err != nil {
-			log.Fatalf("Error registering instance: %v", err)
-		}
-		defer func() {
-			log.Info("here")
-			err := store.UnregisterInstance(instanceId)
-			if err != nil {
-				log.Errorf("Error unregistering instance: %v", err)
-			}
-		}()
-
-		// Run instance
-		code, err := wsl.Run(instanceId, &wsl.RunOpts{
-			User:        User,
-			AttachStdin: AttachStdin,
-		}, args[1:]...)
-		if code < 0 {
-			if err != nil {
-				log.Fatalf("Error running instance: %v", err)
-			}
-			code = 1
-		}
-
 		os.Exit(code)
 	},
 }

@@ -32,19 +32,24 @@ var lsCmd = &cobra.Command{
 	Short: "List built distributions",
 	Long:  "List all distributions built available for creating instances from them.",
 	Run: func(cmd *cobra.Command, args []string) {
-		dists, err := store.GetRegisteredDistributions()
-		if err != nil {
-			log.Errorf("Error reading distributions: %v", err)
-		}
+		code := func() int {
+			dists, err := store.GetRegisteredDistributions()
+			if err != nil {
+				log.Errorf("Error reading distributions: %v", err)
+				return 1
+			}
 
-		writer := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintln(writer, "ID")
+			writer := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+			fmt.Fprintln(writer, "ID")
 
-		for _, dist := range dists {
-			fmt.Fprintln(writer, dist.Id)
-		}
+			for _, dist := range dists {
+				fmt.Fprintln(writer, dist.Id)
+			}
 
-		writer.Flush()
+			writer.Flush()
+			return 0
+		}()
+		os.Exit(code)
 	},
 }
 

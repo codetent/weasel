@@ -16,6 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"os"
+
 	"github.com/codetent/weasel/pkg/weasel/store"
 	"github.com/spf13/cobra"
 
@@ -29,25 +31,32 @@ var pruneCmd = &cobra.Command{
 	Long:  "Remove distribution(s) including cache entries and built files.",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		distIds := args
+		code := func() int {
+			distIds := args
 
-		if len(args) == 0 {
-			dists, err := store.GetRegisteredDistributions()
-			if err != nil {
-				log.Fatalf("Error reading distributions: %v", err)
+			if len(args) == 0 {
+				dists, err := store.GetRegisteredDistributions()
+				if err != nil {
+					log.Errorf("Error reading distributions: %v", err)
+					return 1
+				}
+
+				for _, dist := range dists {
+					distIds = append(distIds, dist.Id)
+				}
 			}
 
-			for _, dist := range dists {
-				distIds = append(distIds, dist.Id)
+			for _, id := range distIds {
+				err := store.UnregisterDistribution(id)
+				if err != nil {
+					log.Errorf("Error pruning distribution: %v", err)
+					return 1
+				}
 			}
-		}
 
-		for _, id := range distIds {
-			err := store.UnregisterDistribution(id)
-			if err != nil {
-				log.Fatalf("Error pruning distribution: %v", err)
-			}
-		}
+			return 0
+		}()
+		os.Exit(code)
 	},
 }
 

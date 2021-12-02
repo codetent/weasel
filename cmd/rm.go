@@ -16,6 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"os"
+
 	"github.com/codetent/weasel/pkg/weasel/store"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
 	"github.com/spf13/cobra"
@@ -30,16 +32,26 @@ var rmCmd = &cobra.Command{
 	Long:  "Remove an instance that is in any state by its id.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		instanceId := args[0]
-		err := store.UnregisterInstance(instanceId)
-		if err != nil {
-			log.Errorf("Error unregistering instance: %v", err)
-		}
+		code := func() int {
+			instanceId := args[0]
 
-		err = wsl.Unregister(instanceId)
-		if err != nil {
-			log.Errorf("Error unloading instance: %v", err)
-		}
+			err := store.UnregisterInstance(instanceId)
+			if err != nil {
+				log.Errorf("Error unregistering instance: %v", err)
+			}
+
+			err = wsl.Unregister(instanceId)
+			if err != nil {
+				log.Errorf("Error unloading instance: %v", err)
+			}
+
+			if err == nil {
+				return 0
+			} else {
+				return 1
+			}
+		}()
+		os.Exit(code)
 	},
 }
 

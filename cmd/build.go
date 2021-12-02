@@ -53,66 +53,78 @@ They are differented by specifying a prefix before the argument.
 - "hub:<value>" - Docker image from docker hub. The value is the tag of a public available image.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var ref string
-		var stream io.ReadCloser
-		var err error
+		code := func() int {
+			var ref string
+			var stream io.ReadCloser
+			var err error
 
-		if strings.HasPrefix(args[0], "context:") {
-			contextPath := strings.TrimPrefix(args[0], "context:")
+			if strings.HasPrefix(args[0], "context:") {
+				contextPath := strings.TrimPrefix(args[0], "context:")
 
-			ref = xid.New().String()
-			stream, err = BuildDockerImage(contextPath, ref)
-			if err != nil {
-				log.Fatalf("Error building image: %v", err)
-			}
-		} else if strings.HasPrefix(args[0], "hub:") {
-			ref = strings.TrimPrefix(args[0], "hub:")
-			stream, err = docker.ImagePull(ref)
-			if err != nil {
-				log.Fatalf("Error pulling image: %v", err)
-			}
-		} else {
-			log.Fatalf("Unknown specifier '%s'", args[0])
-		}
-
-		defer stream.Close()
-		termFd, isTerm := term.GetFdInfo(os.Stdout)
-		jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, termFd, isTerm, nil)
-
-		// Get image id
-		imageId, err := docker.ImageIdByTag(ref)
-		if err != nil {
-			log.Panicf("Error getting image: %v", err)
-		}
-
-		// Export image to archive
-		cacheDir, err := store.GetDistCache()
-		if err != nil {
-			log.Panicf("Error getting distribution cache: %v", err)
-		}
-
-		archivePath := filepath.Join(cacheDir, imageId+".tgz")
-		_, err = os.Stat(archivePath)
-		if errors.Is(err, os.ErrNotExist) {
-			err = docker.ImageExport(imageId, archivePath)
-			if err != nil {
-				log.Fatalf("Error exporting image: %v", err)
-			}
-		}
-
-		// Register tags for distribution
-		for _, tag := range append(Tags, imageId) {
-			err = store.RegisterDistribution(tag, archivePath)
-			if err != nil {
-				log.Panicf("Error registering distribution: %v", err)
+				ref = xid.New().String()
+				stream, err = buildDockerImage(contextPath, ref)
+				if err != nil {
+					log.Errorf("Error building image: %v", err)
+					return 1
+				}
+			} else if strings.HasPrefix(args[0], "hub:") {
+				ref = strings.TrimPrefix(args[0], "hub:")
+				stream, err = docker.ImagePull(ref)
+				if err != nil {
+					log.Errorf("Error pulling image: %v", err)
+					return 1
+				}
+			} else {
+				log.Errorf("Unknown specifier '%s'", args[0])
+				return 1
 			}
 
-			log.Infof("Registered tag '%s' for distribution", tag)
-		}
+			defer stream.Close()
+			termFd, isTerm := term.GetFdInfo(os.Stdout)
+			jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, termFd, isTerm, nil)
+
+			// Get image id
+			imageId, err := docker.ImageIdByTag(ref)
+			if err != nil {
+				log.Errorf("Error getting image: %v", err)
+				return 1
+			}
+
+			// Export image to archive
+			cacheDir, err := store.GetDistCache()
+			if err != nil {
+				log.Errorf("Error getting distribution cache: %v", err)
+				return 1
+			}
+
+			archivePath := filepath.Join(cacheDir, imageId+".tgz")
+			_, err = os.Stat(archivePath)
+			if errors.Is(err, os.ErrNotExist) {
+				err = docker.ImageExport(imageId, archivePath)
+				if err != nil {
+					log.Errorf("Error exporting image: %v", err)
+					return 1
+				}
+			}
+
+			// Register tags for distribution
+			for _, tag := range append(Tags, imageId) {
+				err = store.RegisterDistribution(tag, archivePath)
+				if err != nil {
+					log.Errorf("Error registering distribution: %v", err)
+					return 1
+				}
+
+				log.Infof("Registered tag '%s' for distribution", tag)
+			}
+
+			return 0
+		}()
+		os.Exit(code)
 	},
 }
 
-func BuildDockerImage(contextPath string, tag string) (io.ReadCloser, error) {
+func buildDockerImage(contextPath string, tag string) (io.ReadCloser, error) {
 	dockerFile := DockerFile
 	if DockerFile == "" {
 		dockerFile = filepath.Join(contextPath, "Dockerfile")
