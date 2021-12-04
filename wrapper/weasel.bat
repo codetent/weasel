@@ -23,14 +23,14 @@ REM -------------------------------- Options -----------------------------------
 REM Set the following option to enable build & run mode; if left empty just weasel is called
 set BUILD_ARGS=
 
-set WEASEL_VERSION=v0.1.0
+set WEASEL_VERSION=v0.1.0-alpha.0
 set CACHE_PATH=%~dp0/.weasel
 
 
 REM ------------------------------- Advanced -----------------------------------
 
 set EXEC_NAME=weasel-amd64.exe
-set RELEASE_URL=https://github.com/codetent/weasel/releases/download/%VERSION%/%EXEC_NAME%
+set RELEASE_URL=https://github.com/codetent/weasel/releases/download/%WEASEL_VERSION%/%EXEC_NAME%
 
 
 REM ----------------------------- DO NOT TOUCH ---------------------------------
@@ -52,7 +52,7 @@ if exist "%VERSION_FILE%" (
 )
 
 :download
-curl --silent --show-error --fail --output "%EXEC_FILE%" "%RELEASE_URL%"
+curl -L --silent --show-error --fail --output "%EXEC_FILE%" "%RELEASE_URL%"
 if not %ERRORLEVEL% == 0 (
     echo Error: The weasel executable could not be fetched.
     exit /B 1
