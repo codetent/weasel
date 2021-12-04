@@ -4,7 +4,7 @@
   
   # WeaSeL
   
-  A tool for running WSL distributions like docker containers.
+  A tool for running WSL distributions as easy as docker containers.
   <br/><br/>
 
 </div>
