@@ -1,6 +1,5 @@
 <div align="center">
   <img src="doc/logo.png" width="250" />
-  <br><br>
   
   # WeaSeL
   
