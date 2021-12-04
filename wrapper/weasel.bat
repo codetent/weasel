@@ -29,7 +29,7 @@ set CACHE_PATH=%~dp0/.weasel
 
 REM ------------------------------- Advanced -----------------------------------
 
-set EXEC_NAME=weasel-windows-amd64.exe
+set EXEC_NAME=weasel-amd64.exe
 set RELEASE_URL=https://github.com/codetent/weasel/releases/download/%VERSION%/%EXEC_NAME%
 
 
