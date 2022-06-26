@@ -20,8 +20,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// rmCmd represents the rm command
-var cleanCmd = &cobra.Command{
+var cacheCmd = &cobra.Command{
+	Use:   "cache",
+	Short: "Cache related commands",
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+	},
+}
+
+var cacheCleanCmd = &cobra.Command{
 	Use:   "clean",
 	Short: "Clean weasel cache",
 	Args:  cobra.NoArgs,
@@ -36,5 +43,7 @@ var cleanCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(cleanCmd)
+	rootCmd.AddCommand(cacheCmd)
+
+	cacheCmd.AddCommand(cacheCleanCmd)
 }
