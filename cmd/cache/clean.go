@@ -13,37 +13,35 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package cache
 
 import (
 	"github.com/codetent/weasel/pkg/weasel/cache"
 	"github.com/spf13/cobra"
 )
 
-var cacheCmd = &cobra.Command{
-	Use:   "cache",
-	Short: "Cache related commands",
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
-	},
+type CleanCmd struct{}
+
+func NewCleanCmd() *cobra.Command {
+	cmd := &CleanCmd{}
+
+	cleanCmd := &cobra.Command{
+		Use:   "clean",
+		Short: "Clean weasel cache",
+		Args:  cobra.NoArgs,
+		RunE: func(cobraCmd *cobra.Command, args []string) error {
+			return cmd.Run()
+		},
+	}
+
+	return cleanCmd
 }
 
-var cacheCleanCmd = &cobra.Command{
-	Use:   "clean",
-	Short: "Clean weasel cache",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		err := cache.CleanDistCache()
-		if err != nil {
-			return err
-		}
+func (cmd *CleanCmd) Run() error {
+	err := cache.CleanDistCache()
+	if err != nil {
+		return err
+	}
 
-		return cache.CleanWorkspaceCache()
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(cacheCmd)
-
-	cacheCmd.AddCommand(cacheCleanCmd)
+	return cache.CleanWorkspaceCache()
 }

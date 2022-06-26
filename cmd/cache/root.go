@@ -13,34 +13,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package cache
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/yuk7/wsllib-go"
 )
 
-type EnterCmd struct {
-	DistName string
-}
-
-func NewEnterCmd() *cobra.Command {
-	cmd := &EnterCmd{}
-
-	enterCmd := &cobra.Command{
-		Use:   "enter",
-		Short: "Enter existing distribution",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cobraCmd *cobra.Command, args []string) error {
-			cmd.DistName = args[0]
-			return cmd.Run()
+func NewCacheCmd() *cobra.Command {
+	cacheCmd := &cobra.Command{
+		Use:   "cache",
+		Short: "Cache related commands",
+		Run: func(cobraCmd *cobra.Command, args []string) {
+			cobraCmd.Help()
 		},
 	}
 
-	return enterCmd
-}
-
-func (cmd *EnterCmd) Run() error {
-	wsllib.WslLaunchInteractive(cmd.DistName, "", true)
-	return nil
+	cacheCmd.AddCommand(NewCleanCmd())
+	return cacheCmd
 }

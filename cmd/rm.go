@@ -24,32 +24,40 @@ import (
 	"github.com/yuk7/wsllib-go"
 )
 
-// rmCmd represents the rm command
-var rmCmd = &cobra.Command{
-	Use:   "rm",
-	Short: "Remove distribution",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		distName := args[0]
-
-		if !wsllib.WslIsDistributionRegistered(distName) {
-			return fmt.Errorf("distribution '%s' not found", distName)
-		}
-
-		err := wsllib.WslUnregisterDistribution(distName)
-		if err != nil {
-			return err
-		}
-
-		distWorkspace, err := cache.GetWorkspacePath(distName)
-		if err != nil {
-			return err
-		}
-
-		return os.RemoveAll(distWorkspace)
-	},
+type RmCmd struct {
+	DistName string
 }
 
-func init() {
-	rootCmd.AddCommand(rmCmd)
+func NewRmCmd() *cobra.Command {
+	cmd := &RmCmd{}
+
+	rmCmd := &cobra.Command{
+		Use:   "rm",
+		Short: "Remove distribution",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cobraCmd *cobra.Command, args []string) error {
+			cmd.DistName = args[0]
+			return cmd.Run()
+		},
+	}
+
+	return rmCmd
+}
+
+func (cmd *RmCmd) Run() error {
+	if !wsllib.WslIsDistributionRegistered(cmd.DistName) {
+		return fmt.Errorf("distribution '%s' not found", cmd.DistName)
+	}
+
+	err := wsllib.WslUnregisterDistribution(cmd.DistName)
+	if err != nil {
+		return err
+	}
+
+	distWorkspace, err := cache.GetWorkspacePath(cmd.DistName)
+	if err != nil {
+		return err
+	}
+
+	return os.RemoveAll(distWorkspace)
 }

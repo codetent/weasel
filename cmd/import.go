@@ -28,84 +28,90 @@ import (
 	"github.com/yuk7/wsllib-go"
 )
 
-var (
-	ImportDisableCache bool
-	ImportForce        bool
-)
-
-var importCmd = &cobra.Command{
-	Use:   "import",
-	Short: "Import distribution",
-	Args:  cobra.RangeArgs(1, 2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		imageRef := args[0]
-		distName := imageRef
-		if len(args) > 1 {
-			distName = args[1]
-		}
-
-		// Check distribution state
-		if wsllib.WslIsDistributionRegistered(distName) {
-			if ImportForce {
-				fmt.Printf("Distribution with name already '%s' found. Unregistering it.\n", distName)
-
-				err := wsllib.WslUnregisterDistribution(distName)
-				if err != nil {
-					return err
-				}
-			} else {
-				fmt.Printf("Distribution '%s' already installed\n", distName)
-				return nil
-			}
-		}
-
-		// Pull docker image
-		stream, err := docker.ImagePull(imageRef)
-		if err != nil {
-			return err
-		}
-		defer stream.Close()
-		termFd, isTerm := term.GetFdInfo(os.Stdout)
-		jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, termFd, isTerm, nil)
-
-		// Lock cache
-		lock, err := cache.GetLock()
-		if err != nil {
-			return err
-		}
-		defer lock.Unlock()
-
-		// Export docker image rootfs
-		archivePath, err := cache.GetDistPath(imageRef)
-		if err != nil {
-			return err
-		}
-
-		err = docker.ImageExport(imageRef, archivePath)
-		if err != nil {
-			return err
-		}
-		defer os.Remove(archivePath)
-
-		// Get path to workspace
-		distWorkspace, err := cache.GetWorkspacePath(distName)
-		if err != nil {
-			return err
-		}
-
-		// Import distribution
-		err = wsl.Import(distName, distWorkspace, archivePath)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	},
+type ImportCmd struct {
+	ImageRef string
+	DistName string
+	Force    bool
 }
 
-func init() {
-	rootCmd.AddCommand(importCmd)
+func NewImportCmd() *cobra.Command {
+	cmd := &ImportCmd{}
 
-	importCmd.Flags().BoolVar(&ImportDisableCache, "no-cache", false, "Do not use cache when building the image.")
-	importCmd.Flags().BoolVar(&ImportForce, "force", false, "Overwrite already existing distribution")
+	importCmd := &cobra.Command{
+		Use:   "import",
+		Short: "Import distribution",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cobraCmd *cobra.Command, args []string) error {
+			cmd.ImageRef = args[0]
+
+			cmd.DistName = cmd.ImageRef
+			if len(args) > 1 {
+				cmd.DistName = args[1]
+			}
+
+			return cmd.Run()
+		},
+	}
+
+	importCmd.Flags().BoolVar(&cmd.Force, "force", false, "Overwrite already existing distribution")
+	return importCmd
+}
+
+func (cmd *ImportCmd) Run() error {
+	// Check distribution state
+	if wsllib.WslIsDistributionRegistered(cmd.DistName) {
+		if cmd.Force {
+			fmt.Printf("Distribution with name already '%s' found. Unregistering it.\n", cmd.DistName)
+
+			err := wsllib.WslUnregisterDistribution(cmd.DistName)
+			if err != nil {
+				return err
+			}
+		} else {
+			fmt.Printf("Distribution '%s' already installed\n", cmd.DistName)
+			return nil
+		}
+	}
+
+	// Pull docker image
+	stream, err := docker.ImagePull(cmd.ImageRef)
+	if err != nil {
+		return err
+	}
+	defer stream.Close()
+	termFd, isTerm := term.GetFdInfo(os.Stdout)
+	jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, termFd, isTerm, nil)
+
+	// Lock cache
+	lock, err := cache.GetLock()
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+
+	// Export docker image rootfs
+	archivePath, err := cache.GetDistPath(cmd.ImageRef)
+	if err != nil {
+		return err
+	}
+
+	err = docker.ImageExport(cmd.ImageRef, archivePath)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(archivePath)
+
+	// Get path to workspace
+	distWorkspace, err := cache.GetWorkspacePath(cmd.DistName)
+	if err != nil {
+		return err
+	}
+
+	// Import distribution
+	err = wsl.Import(cmd.DistName, distWorkspace, archivePath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

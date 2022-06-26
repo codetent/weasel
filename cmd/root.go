@@ -20,47 +20,63 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/codetent/weasel/cmd/cache"
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	ErrorsOnly    bool
-	EnableVerbose bool
-)
-
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:  "weasel",
-	Long: "Tool for managing WSL distributions like docker containers.",
-	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd: true,
-	},
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		log.SetOutput(os.Stdout)
-		log.SetFormatter(&log.TextFormatter{
-			DisableTimestamp:       true,
-			ForceColors:            true,
-			DisableLevelTruncation: true,
-		})
-
-		if ErrorsOnly {
-			log.SetLevel(log.ErrorLevel)
-		} else if EnableVerbose {
-			log.SetLevel(log.DebugLevel)
-		} else {
-			log.SetLevel(log.InfoLevel)
-		}
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
-	},
+type RootCmd struct {
+	ErrorsOnly bool
+	Verbose    bool
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+func NewRootCmd() *cobra.Command {
+	cmd := &RootCmd{}
+
+	rootCmd := &cobra.Command{
+		Use:  "weasel",
+		Long: "Tool for managing WSL distributions like docker containers.",
+		CompletionOptions: cobra.CompletionOptions{
+			DisableDefaultCmd: true,
+		},
+		PersistentPreRunE: func(cobraCmd *cobra.Command, args []string) error {
+			return cmd.PreRun()
+		},
+		RunE: func(cobraCmd *cobra.Command, args []string) error {
+			return cobraCmd.Help()
+		},
+	}
+
+	rootCmd.PersistentFlags().BoolVar(&cmd.ErrorsOnly, "errors-only", false, "Only show errors")
+	rootCmd.PersistentFlags().BoolVarP(&cmd.Verbose, "verbose", "v", false, "Enable verbose output")
+	return rootCmd
+}
+
+func (cmd *RootCmd) PreRun() error {
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp:       true,
+		ForceColors:            true,
+		DisableLevelTruncation: true,
+	})
+
+	if cmd.ErrorsOnly {
+		log.SetLevel(log.ErrorLevel)
+	} else if cmd.Verbose {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+
+	return nil
+}
+
 func Execute() {
-	rootCmd.PersistentFlags().BoolVar(&ErrorsOnly, "errors-only", false, "Only show errors")
-	rootCmd.PersistentFlags().BoolVarP(&EnableVerbose, "verbose", "v", false, "Enable verbose output")
+	rootCmd := NewRootCmd()
+
+	rootCmd.AddCommand(NewImportCmd())
+	rootCmd.AddCommand(NewRmCmd())
+	rootCmd.AddCommand(NewEnterCmd())
+	rootCmd.AddCommand(cache.NewCacheCmd())
 
 	cobra.CheckErr(rootCmd.Execute())
 }
