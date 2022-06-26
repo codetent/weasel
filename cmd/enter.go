@@ -13,14 +13,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package weasel
+package cmd
 
-import gonanoid "github.com/matoous/go-nanoid/v2"
+import (
+	"github.com/spf13/cobra"
+	"github.com/yuk7/wsllib-go"
+)
 
-func GenerateId() string {
-	id, err := gonanoid.Generate("0123456789abcdef", 12)
-	if err != nil {
-		panic(err)
-	}
-	return id
+// rmCmd represents the rm command
+var enterCmd = &cobra.Command{
+	Use:   "enter",
+	Short: "Enter existing distribution",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		distName := args[0]
+		wsllib.WslLaunchInteractive(distName, "", true)
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(enterCmd)
 }

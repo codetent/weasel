@@ -16,40 +16,25 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/codetent/weasel/pkg/weasel/cache"
 	"github.com/spf13/cobra"
-	"github.com/yuk7/wsllib-go"
 )
 
 // rmCmd represents the rm command
-var rmCmd = &cobra.Command{
-	Use:   "rm",
-	Short: "Remove distribution",
-	Args:  cobra.ExactArgs(1),
+var cleanCmd = &cobra.Command{
+	Use:   "clean",
+	Short: "Clean weasel cache",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		distName := args[0]
-
-		if !wsllib.WslIsDistributionRegistered(distName) {
-			return fmt.Errorf("distribution '%s' not found", distName)
-		}
-
-		err := wsllib.WslUnregisterDistribution(distName)
+		err := cache.CleanDistCache()
 		if err != nil {
 			return err
 		}
 
-		distWorkspace, err := cache.GetWorkspacePath(distName)
-		if err != nil {
-			return err
-		}
-
-		return os.RemoveAll(distWorkspace)
+		return cache.CleanWorkspaceCache()
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(rmCmd)
+	rootCmd.AddCommand(cleanCmd)
 }

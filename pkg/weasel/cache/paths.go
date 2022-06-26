@@ -13,48 +13,63 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package store
+package cache
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/gofrs/flock"
 )
 
-func GetCacheRoot() (string, error) {
+func GetRoot() (string, error) {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("GetCacheRoot: UserHomeDir(): %v", err)
+		return "", fmt.Errorf("GetRoot: UserHomeDir(): %v", err)
 	}
 
 	root := filepath.Join(userHome, ".weasel")
 	err = os.MkdirAll(root, os.ModePerm)
 	if err != nil {
-		return "", fmt.Errorf("GetCacheRoot: MkdirAll(): %v", err)
+		return "", fmt.Errorf("GetRoot: MkdirAll(): %v", err)
 	}
 
 	return root, nil
 }
 
-func GetDistCache() (string, error) {
-	root, err := GetCacheRoot()
+func GetLock() (*flock.Flock, error) {
+	root, err := GetRoot()
 	if err != nil {
-		return "", fmt.Errorf("GetDistCache: GetCacheRoot(): %v", err)
+		return nil, fmt.Errorf("GetDistRoot: GetRoot(): %v", err)
+	}
+
+	path := filepath.Join(root, "lock")
+	lock := flock.New(path)
+
+	err = lock.Lock()
+	return lock, err
+}
+
+func GetDistRoot() (string, error) {
+	root, err := GetRoot()
+	if err != nil {
+		return "", fmt.Errorf("GetDistRoot: GetRoot(): %v", err)
 	}
 
 	path := filepath.Join(root, "dists")
 	err = os.MkdirAll(path, os.ModePerm)
 	if err != nil {
-		return "", fmt.Errorf("GetDistCache: MkdirAll(): %v", err)
+		return "", fmt.Errorf("GetDistRoot: MkdirAll(): %v", err)
 	}
 
 	return path, nil
 }
 
 func GetWorkspaceRoot() (string, error) {
-	root, err := GetCacheRoot()
+	root, err := GetRoot()
 	if err != nil {
-		return "", fmt.Errorf("GetWorkspaceRoot: GetCacheRoot(): %v", err)
+		return "", fmt.Errorf("GetWorkspaceRoot: GetRoot(): %v", err)
 	}
 
 	path := filepath.Join(root, "workspaces")
