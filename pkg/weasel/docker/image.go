@@ -23,11 +23,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/mholt/archiver/v3"
 )
@@ -133,29 +131,4 @@ func ImageExport(tag string, targetPath string) error {
 	}
 
 	return nil
-}
-
-func ImageIdByTag(tag string) (string, error) {
-	// Create docker client
-	ctx := context.Background()
-	docker, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return "", fmt.Errorf("ImagePull: NewClient(): %v", err)
-	}
-
-	// Get id of tagged image
-	filters := filters.NewArgs()
-	filters.Add("reference", tag)
-	images, err := docker.ImageList(ctx, types.ImageListOptions{
-		Filters: filters,
-	})
-	if err != nil {
-		return "", fmt.Errorf("ImagePull: ImageList(): %v", err)
-	}
-	if len(images) == 0 {
-		return "", fmt.Errorf("ImagePull: tag not found")
-	}
-
-	idValue := strings.SplitN(images[0].ID, ":", 2)
-	return idValue[1][:12], nil
 }
