@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/codetent/weasel/pkg/weasel/cache"
 	"github.com/codetent/weasel/pkg/weasel/docker"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
@@ -53,47 +55,53 @@ func NewImportCmd() *cobra.Command {
 		},
 	}
 
-	importCmd.Flags().BoolVar(&cmd.Force, "force", false, "Overwrite already existing distribution")
+	importCmd.Flags().BoolVarP(&cmd.Force, "force", "f", false, "Overwrite already existing distribution")
 	return importCmd
 }
 
 func (cmd *ImportCmd) Run() error {
-	// Check distribution state
 	if wsllib.WslIsDistributionRegistered(cmd.DistName) {
 		if cmd.Force {
-			fmt.Printf("Distribution with name already '%s' found. Unregistering it.\n", cmd.DistName)
+			log.Warnf("Distribution with name already '%s' found. Unregistering it.", cmd.DistName)
+			fmt.Println()
 
 			err := wsllib.WslUnregisterDistribution(cmd.DistName)
 			if err != nil {
 				return err
 			}
 		} else {
-			fmt.Printf("Distribution '%s' already installed\n", cmd.DistName)
+			log.Warnf("Distribution '%s' already installed", cmd.DistName)
 			return nil
 		}
 	}
 
-	// Pull docker image
+	log.Infof("Pulling docker image '%s'", cmd.ImageRef)
+
 	stream, err := docker.ImagePull(cmd.ImageRef)
 	if err != nil {
 		return err
 	}
 	defer stream.Close()
-	termFd, isTerm := term.GetFdInfo(os.Stdout)
-	jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, termFd, isTerm, nil)
+	writer := log.StandardLogger().Out
+	termFd, isTerm := term.GetFdInfo(writer)
+	jsonmessage.DisplayJSONMessagesStream(stream, writer, termFd, isTerm, nil)
 
-	// Lock cache
+	fmt.Println()
+	log.Debugln("Locking cache")
+
 	lock, err := cache.GetLock()
 	if err != nil {
 		return err
 	}
 	defer lock.Unlock()
 
-	// Export docker image rootfs
 	archivePath, err := cache.GetDistPath(cmd.ImageRef)
 	if err != nil {
 		return err
 	}
+
+	log.Infoln("Creating distribution using image rootfs")
+	log.Debugf("Storing distribution at '%s'", archivePath)
 
 	err = docker.ImageExport(cmd.ImageRef, archivePath)
 	if err != nil {
@@ -101,13 +109,14 @@ func (cmd *ImportCmd) Run() error {
 	}
 	defer os.Remove(archivePath)
 
-	// Get path to workspace
 	distWorkspace, err := cache.GetWorkspacePath(cmd.DistName)
 	if err != nil {
 		return err
 	}
 
-	// Import distribution
+	log.Infof("Importing distribution into WSL as '%s'", cmd.DistName)
+	log.Debugf("Workspace of distribution at '%s'", distWorkspace)
+
 	err = wsl.Import(cmd.DistName, distWorkspace, archivePath)
 	if err != nil {
 		return err

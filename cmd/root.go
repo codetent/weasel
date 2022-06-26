@@ -57,6 +57,7 @@ func (cmd *RootCmd) PreRun() error {
 		DisableTimestamp:       true,
 		ForceColors:            true,
 		DisableLevelTruncation: true,
+		PadLevelText:           true,
 	})
 
 	if cmd.ErrorsOnly {
