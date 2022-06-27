@@ -46,7 +46,7 @@ func NewImportCmd() *cobra.Command {
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			cmd.ImageRef = args[0]
 
-			cmd.DistName = cmd.ImageRef
+			cmd.DistName = docker.GetImageNameFromRef(cmd.ImageRef)
 			if len(args) > 1 {
 				cmd.DistName = args[1]
 			}
@@ -86,6 +86,11 @@ func (cmd *ImportCmd) Run() error {
 	termFd, isTerm := term.GetFdInfo(writer)
 	jsonmessage.DisplayJSONMessagesStream(stream, writer, termFd, isTerm, nil)
 
+	imageId, err := docker.ResolveImageRef(cmd.ImageRef)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println()
 	log.Debugln("Locking cache")
 
@@ -95,7 +100,7 @@ func (cmd *ImportCmd) Run() error {
 	}
 	defer lock.Unlock()
 
-	archivePath, err := cache.GetDistPath(cmd.ImageRef)
+	archivePath, err := cache.GetDistPath(imageId)
 	if err != nil {
 		return err
 	}
@@ -103,7 +108,7 @@ func (cmd *ImportCmd) Run() error {
 	log.Infoln("Creating distribution using image rootfs")
 	log.Debugf("Storing distribution at '%s'", archivePath)
 
-	err = docker.ImageExport(cmd.ImageRef, archivePath)
+	err = docker.ImageExport(imageId, archivePath)
 	if err != nil {
 		return err
 	}

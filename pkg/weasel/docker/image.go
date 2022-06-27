@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -131,4 +132,25 @@ func ImageExport(tag string, targetPath string) error {
 	}
 
 	return nil
+}
+
+func GetImageNameFromRef(ref string) string {
+	return strings.Split(ref, ":")[0]
+}
+
+func ResolveImageRef(ref string) (string, error) {
+	// Create docker client
+	ctx := context.Background()
+	docker, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return "", fmt.Errorf("ResolveImageRef: NewClient(): %v", err)
+	}
+
+	info, _, err := docker.ImageInspectWithRaw(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("ResolveImageRef: ImageInspectWithRaw(): %v", err)
+	}
+
+	id := strings.Split(info.ID, ":")[1]
+	return id, nil
 }
