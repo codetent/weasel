@@ -143,6 +143,6 @@ func (cmd *EnterCmd) Run() error {
 		}
 	}
 
-	wsllib.WslLaunchInteractive(distName, "", true)
-	return nil
+	_, err = wsllib.WslLaunchInteractive(distName, "", true)
+	return err
 }

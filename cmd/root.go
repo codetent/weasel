@@ -74,8 +74,9 @@ func (cmd *RootCmd) PreRun() error {
 func Execute() {
 	rootCmd := NewRootCmd()
 
-	rootCmd.AddCommand(NewRmCmd())
 	rootCmd.AddCommand(NewEnterCmd())
+	rootCmd.AddCommand(NewRmCmd())
+	rootCmd.AddCommand(NewOpenCmd())
 	rootCmd.AddCommand(cache.NewCacheCmd())
 
 	cobra.CheckErr(rootCmd.Execute())
