@@ -24,6 +24,7 @@ import (
 	"github.com/codetent/weasel/pkg/weasel/config"
 	"github.com/codetent/weasel/pkg/weasel/utils"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -88,7 +89,7 @@ func (cmd *EnterCmd) Run() error {
 		if err != nil {
 			return err
 		}
-		image, err := remote.Image(imageRef)
+		image, err := remote.Image(imageRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 		if err != nil {
 			return err
 		}
