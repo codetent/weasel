@@ -33,7 +33,7 @@ func NewRmCmd() *cobra.Command {
 
 	rmCmd := &cobra.Command{
 		Use:   "rm",
-		Short: "Remove distribution",
+		Short: "Remove environment",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			cmd.EnvName = args[0]
@@ -46,30 +46,28 @@ func NewRmCmd() *cobra.Command {
 
 func (cmd *RmCmd) Run() error {
 	configFile, err := config.LocateConfigFile()
-	if err != nil {
-		return err
-	}
-	log.Infof("configuration found at %s", configFile.Path)
-
-	config, err := configFile.Content()
-	if err != nil {
+	if err == nil {
+		log.Debugf("Configuration located at %s", configFile.Path)
+	} else {
 		return err
 	}
 
-	if _, ok := config.Environments[cmd.EnvName]; !ok {
-		return fmt.Errorf("undefined environment '%s'", cmd.EnvName)
+	configContent, err := configFile.Content()
+	if err == nil {
+		log.Debug("Configuration loaded successfully")
+	} else {
+		return err
 	}
 
-	distName := config.Name + "-" + cmd.EnvName
+	if _, ok := configContent.Environments[cmd.EnvName]; !ok {
+		return fmt.Errorf("undefined environment %s", cmd.EnvName)
+	}
+
+	distName := configContent.Name + "-" + cmd.EnvName
 
 	if !wsllib.WslIsDistributionRegistered(distName) {
-		return fmt.Errorf("distribution '%s' not found", distName)
+		return fmt.Errorf("environment %s not available. Enter it first", cmd.EnvName)
 	}
 
-	err = wsllib.WslUnregisterDistribution(distName)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return wsllib.WslUnregisterDistribution(distName)
 }
