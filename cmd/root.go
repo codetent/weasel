@@ -74,7 +74,6 @@ func (cmd *RootCmd) PreRun() error {
 func Execute() {
 	rootCmd := NewRootCmd()
 
-	rootCmd.AddCommand(NewImportCmd())
 	rootCmd.AddCommand(NewRmCmd())
 	rootCmd.AddCommand(NewEnterCmd())
 	rootCmd.AddCommand(cache.NewCacheCmd())

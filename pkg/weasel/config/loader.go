@@ -10,10 +10,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Locate() (string, error) {
+type ConfigFile struct {
+	Path string
+}
+
+func LocateConfigFile() (*ConfigFile, error) {
 	next, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	current := ""
@@ -22,17 +26,20 @@ func Locate() (string, error) {
 		configPath := filepath.Join(current, "weasel.yml")
 
 		if _, err := os.Stat(configPath); err == nil {
-			return configPath, nil
+			config := &ConfigFile{
+				Path: configPath,
+			}
+			return config, nil
 		}
 
 		next = filepath.Dir(current)
 	}
 
-	return "", fmt.Errorf("configuration not found")
+	return nil, fmt.Errorf("configuration not found")
 }
 
-func Load(path string) (*v1alpha1.Config, error) {
-	data, err := os.ReadFile(path)
+func (file *ConfigFile) Content() (*v1alpha1.Config, error) {
+	data, err := os.ReadFile(file.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +53,5 @@ func Load(path string) (*v1alpha1.Config, error) {
 
 	config := &v1alpha1.Config{}
 	yaml.Unmarshal(data, config)
-
 	return config, nil
 }

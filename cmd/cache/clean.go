@@ -16,7 +16,6 @@ limitations under the License.
 package cache
 
 import (
-	"github.com/codetent/weasel/pkg/weasel/cache"
 	"github.com/spf13/cobra"
 )
 
@@ -38,10 +37,11 @@ func NewCleanCmd() *cobra.Command {
 }
 
 func (cmd *CleanCmd) Run() error {
-	err := cache.CleanDistCache()
+	/*err := cache.CleanDistCache()
 	if err != nil {
 		return err
 	}
 
-	return cache.CleanWorkspaceCache()
+	return cache.CleanWorkspaceCache()*/
+	return nil
 }

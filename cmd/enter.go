@@ -17,17 +17,15 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/codetent/weasel/pkg/weasel/config"
-	"github.com/codetent/weasel/pkg/weasel/utils"
+	"github.com/codetent/weasel/pkg/weasel/oci"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/yuk7/wsllib-go"
@@ -43,7 +41,7 @@ func NewEnterCmd() *cobra.Command {
 
 	enterCmd := &cobra.Command{
 		Use:   "enter",
-		Short: "Enter existing distribution",
+		Short: "Enter existing environment",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			cmd.EnvName = args[0]
@@ -51,30 +49,34 @@ func NewEnterCmd() *cobra.Command {
 		},
 	}
 
-	enterCmd.Flags().BoolVarP(&cmd.Recreate, "recreate", "r", false, "Recreate distribution")
+	enterCmd.Flags().BoolVarP(&cmd.Recreate, "recreate", "r", false, "Recreate environment")
 	return enterCmd
 }
 
 func (cmd *EnterCmd) Run() error {
-	configPath, err := config.Locate()
-	if err != nil {
-		return err
-	}
-	log.Infof("configuration found at %s", configPath)
-
-	config, err := config.Load(configPath)
-	if err != nil {
+	configFile, err := config.LocateConfigFile()
+	if err == nil {
+		log.Debugf("Configuration located at %s", configFile.Path)
+	} else {
 		return err
 	}
 
-	if _, ok := config.Environments[cmd.EnvName]; !ok {
-		return fmt.Errorf("undefined environment '%s'", cmd.EnvName)
+	configContent, err := configFile.Content()
+	if err == nil {
+		log.Debug("Configuration loaded successfully")
+	} else {
+		return err
 	}
 
-	distName := config.Name + "-" + cmd.EnvName
+	if _, ok := configContent.Environments[cmd.EnvName]; !ok {
+		return fmt.Errorf("undefined environment %s", cmd.EnvName)
+	}
+
+	distName := configContent.Name + "-" + cmd.EnvName
 	envExists := wsllib.WslIsDistributionRegistered(distName)
-	if cmd.Recreate && envExists {
-		log.Warnf("distribution with name already '%s' exists. recreating it", distName)
+
+	if envExists && cmd.Recreate {
+		log.Warn("Recreating already existing environment")
 
 		err := wsllib.WslUnregisterDistribution(distName)
 		if err != nil {
@@ -84,8 +86,11 @@ func (cmd *EnterCmd) Run() error {
 		envExists = false
 	}
 
-	if !envExists {
-		imageRef, err := name.ParseReference(config.Environments[cmd.EnvName].Image)
+	if envExists {
+		log.Debug("Loading already existing environment")
+	} else {
+		imageRawRef := configContent.Environments[cmd.EnvName].Image
+		imageRef, err := name.ParseReference(imageRawRef)
 		if err != nil {
 			return err
 		}
@@ -98,62 +103,43 @@ func (cmd *EnterCmd) Run() error {
 			return err
 		}
 
-		weaselPath := filepath.Join(filepath.Dir(configPath), ".weasel")
-		cachePath := filepath.Join(weaselPath, "cache", imageRef.Context().Name())
-		archivePath := filepath.Join(cachePath, imageDigest.Hex[:12]+".tar.gz")
+		log.Infof("Setting up environment using %s:%s", imageRef.Context().Name(), imageDigest.Hex)
+
+		archivePath := config.GetArchiveCachePath(configFile, imageRef, imageDigest)
 
 		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-			err = os.MkdirAll(cachePath, os.ModePerm)
+			err = os.MkdirAll(filepath.Dir(archivePath), os.ModePerm)
 			if err != nil {
 				return err
 			}
 
-			pullPath, err := ioutil.TempDir("", "weasel")
+			log.Debug("Exporting image rootfs as tarball")
+
+			err = oci.ExportRootFs(image, imageRef, archivePath)
 			if err != nil {
 				return err
 			}
-			defer os.RemoveAll(pullPath)
-
-			tarPath := filepath.Join(pullPath, "image.tar.gz")
-
-			log.Infoln("pulling image tarball")
-			log.Debugf("storing tarball at '%s'", tarPath)
-
-			err = tarball.WriteToFile(tarPath, imageRef, image)
-			if err != nil {
-				return err
-			}
-
-			untaredPath := filepath.Join(pullPath, "content")
-			err = utils.UntarPattern(tarPath, untaredPath)
-			if err != nil {
-				return err
-			}
-
-			archivePathCandidates, err := filepath.Glob(filepath.Join(untaredPath, "*.tar.gz"))
-			if err != nil {
-				return err
-			} else if len(archivePathCandidates) == 0 {
-				return fmt.Errorf("archive not found")
-			}
-
-			utils.CopyFile(archivePathCandidates[0], archivePath)
 		} else {
-			log.Info("image tarball already found in cache")
+			log.Debug("Image tarball already found in cache")
 		}
 
-		workspacePath := filepath.Join(weaselPath, "workspaces", imageRef.Context().Name(), imageDigest.Hex[:12])
-		err = os.MkdirAll(workspacePath, os.ModePerm)
-		if err != nil {
-			return err
-		}
+		workspacePath := config.GetWorkspaceCachePath(configFile, imageRef, imageDigest)
+		workspaceVhdx := filepath.Join(workspacePath, "ext4.vhdx")
 
-		log.Infof("importing distribution into WSL as '%s'", distName)
-		log.Debugf("workspace of distribution at '%s'", workspacePath)
+		if _, err := os.Stat(workspaceVhdx); os.IsNotExist(err) {
+			err = os.MkdirAll(workspacePath, os.ModePerm)
+			if err != nil {
+				return err
+			}
 
-		err = wsl.Import(distName, workspacePath, archivePath)
-		if err != nil {
-			return err
+			log.Infof("Importing environment into WSL as %s", distName)
+
+			err = wsl.Import(distName, workspacePath, archivePath)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("foreign virtual disk in cache at %s", workspaceVhdx)
 		}
 	}
 

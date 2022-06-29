@@ -17,15 +17,15 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/codetent/weasel/pkg/weasel/cache"
+	"github.com/codetent/weasel/pkg/weasel/config"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/yuk7/wsllib-go"
 )
 
 type RmCmd struct {
-	DistName string
+	EnvName string
 }
 
 func NewRmCmd() *cobra.Command {
@@ -36,7 +36,7 @@ func NewRmCmd() *cobra.Command {
 		Short: "Remove distribution",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
-			cmd.DistName = args[0]
+			cmd.EnvName = args[0]
 			return cmd.Run()
 		},
 	}
@@ -45,19 +45,31 @@ func NewRmCmd() *cobra.Command {
 }
 
 func (cmd *RmCmd) Run() error {
-	if !wsllib.WslIsDistributionRegistered(cmd.DistName) {
-		return fmt.Errorf("distribution '%s' not found", cmd.DistName)
+	configFile, err := config.LocateConfigFile()
+	if err != nil {
+		return err
 	}
+	log.Infof("configuration found at %s", configFile.Path)
 
-	err := wsllib.WslUnregisterDistribution(cmd.DistName)
+	config, err := configFile.Content()
 	if err != nil {
 		return err
 	}
 
-	distWorkspace, err := cache.GetWorkspacePath(cmd.DistName)
+	if _, ok := config.Environments[cmd.EnvName]; !ok {
+		return fmt.Errorf("undefined environment '%s'", cmd.EnvName)
+	}
+
+	distName := config.Name + "-" + cmd.EnvName
+
+	if !wsllib.WslIsDistributionRegistered(distName) {
+		return fmt.Errorf("distribution '%s' not found", distName)
+	}
+
+	err = wsllib.WslUnregisterDistribution(distName)
 	if err != nil {
 		return err
 	}
 
-	return os.RemoveAll(distWorkspace)
+	return nil
 }
