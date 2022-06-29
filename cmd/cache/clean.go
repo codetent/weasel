@@ -16,6 +16,10 @@ limitations under the License.
 package cache
 
 import (
+	"os"
+
+	"github.com/codetent/weasel/pkg/weasel/config"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -37,11 +41,15 @@ func NewCleanCmd() *cobra.Command {
 }
 
 func (cmd *CleanCmd) Run() error {
-	/*err := cache.CleanDistCache()
-	if err != nil {
+	configFile, err := config.LocateConfigFile()
+	if err == nil {
+		log.Debugf("Configuration located at %s", configFile.Path)
+	} else {
 		return err
 	}
 
-	return cache.CleanWorkspaceCache()*/
+	archiveCacheRoot := config.GetArchiveCacheRoot(configFile)
+	_ = os.RemoveAll(archiveCacheRoot)
+
 	return nil
 }

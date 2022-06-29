@@ -16,12 +16,22 @@ func GetWeaselDir(file *ConfigFile) string {
 	return filepath.Join(root, ".weasel")
 }
 
-func GetArchiveCachePath(file *ConfigFile, ref name.Reference, digest v1.Hash) string {
+func GetArchiveCacheRoot(file *ConfigFile) string {
 	weasel := GetWeaselDir(file)
-	return filepath.Join(weasel, "cache", ref.Context().Name(), digest.Hex[:12]+".tar.gz")
+	return filepath.Join(weasel, "cache")
+}
+
+func GetArchiveCachePath(file *ConfigFile, ref name.Reference, digest v1.Hash) string {
+	root := GetArchiveCacheRoot(file)
+	return filepath.Join(root, ref.Context().Name(), digest.Hex[:12]+".tar.gz")
+}
+
+func GetWorkspaceCacheRoot(file *ConfigFile) string {
+	weasel := GetWeaselDir(file)
+	return filepath.Join(weasel, "workspaces")
 }
 
 func GetWorkspaceCachePath(file *ConfigFile, ref name.Reference, digest v1.Hash) string {
-	weasel := GetWeaselDir(file)
-	return filepath.Join(weasel, "workspaces", ref.Context().Name(), digest.Hex[:12])
+	root := GetWorkspaceCacheRoot(file)
+	return filepath.Join(root, ref.Context().Name(), digest.Hex[:12])
 }

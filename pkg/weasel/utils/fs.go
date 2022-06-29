@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -73,4 +74,9 @@ func CopyFile(src string, dst string) error {
 
 	_, err = io.Copy(destination, source)
 	return err
+}
+
+func IsDirEmpty(path string) bool {
+	dir, _ := ioutil.ReadDir(path)
+	return len(dir) == 0
 }
