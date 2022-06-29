@@ -75,8 +75,8 @@ func Execute() {
 	rootCmd := NewRootCmd()
 
 	rootCmd.AddCommand(NewEnterCmd())
-	rootCmd.AddCommand(NewRmCmd())
-	rootCmd.AddCommand(NewOpenCmd())
+	rootCmd.AddCommand(NewRemoveCmd())
+	rootCmd.AddCommand(NewExploreCmd())
 	rootCmd.AddCommand(cache.NewCacheCmd())
 
 	cobra.CheckErr(rootCmd.Execute())

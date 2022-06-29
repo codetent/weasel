@@ -41,7 +41,7 @@ func NewEnterCmd() *cobra.Command {
 
 	enterCmd := &cobra.Command{
 		Use:   "enter",
-		Short: "Enter existing environment",
+		Short: "Enter environment",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			cmd.EnvName = args[0]

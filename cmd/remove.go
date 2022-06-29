@@ -17,7 +17,6 @@ package cmd
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/codetent/weasel/pkg/weasel/config"
 	log "github.com/sirupsen/logrus"
@@ -25,16 +24,16 @@ import (
 	"github.com/yuk7/wsllib-go"
 )
 
-type OpenCmd struct {
+type RemoveCmd struct {
 	EnvName string
 }
 
-func NewOpenCmd() *cobra.Command {
-	cmd := &OpenCmd{}
+func NewRemoveCmd() *cobra.Command {
+	cmd := &RemoveCmd{}
 
-	openCmd := &cobra.Command{
-		Use:   "open",
-		Short: "Open environment folder",
+	removeCmd := &cobra.Command{
+		Use:   "remove",
+		Short: "Remove environment",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			cmd.EnvName = args[0]
@@ -42,10 +41,10 @@ func NewOpenCmd() *cobra.Command {
 		},
 	}
 
-	return openCmd
+	return removeCmd
 }
 
-func (cmd *OpenCmd) Run() error {
+func (cmd *RemoveCmd) Run() error {
 	configFile, err := config.LocateConfigFile()
 	if err == nil {
 		log.Debugf("Configuration located at %s", configFile.Path)
@@ -70,7 +69,5 @@ func (cmd *OpenCmd) Run() error {
 		return fmt.Errorf("environment %s not available. Enter it first", cmd.EnvName)
 	}
 
-	devNull := syscall.Handle(0)
-	_, err = wsllib.WslLaunch(distName, "explorer.exe .", false, devNull, devNull, devNull)
-	return err
+	return wsllib.WslUnregisterDistribution(distName)
 }
