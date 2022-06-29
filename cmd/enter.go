@@ -17,14 +17,16 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/codetent/weasel/pkg/weasel/config"
-	"github.com/codetent/weasel/pkg/weasel/docker"
+	"github.com/codetent/weasel/pkg/weasel/utils"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/moby/term"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/yuk7/wsllib-go"
@@ -81,46 +83,65 @@ func (cmd *EnterCmd) Run() error {
 		envExists = false
 	}
 
-	imageRef := config.Environments[cmd.EnvName].Image
-	log.Infof("pulling docker image '%s'", imageRef)
-
-	stream, err := docker.ImagePull(imageRef)
-	if err != nil {
-		return err
-	}
-	defer stream.Close()
-	writer := log.StandardLogger().Out
-	termFd, isTerm := term.GetFdInfo(writer)
-	jsonmessage.DisplayJSONMessagesStream(stream, writer, termFd, isTerm, nil)
-
-	imageName := docker.GetImageNameFromRef(imageRef)
-	imageId, err := docker.ResolveImageRef(imageRef)
-	if err != nil {
-		return err
-	}
-
-	weaselPath := filepath.Join(filepath.Dir(configPath), ".weasel")
-	cachePath := filepath.Join(weaselPath, "cache", imageName)
-	archivePath := filepath.Join(cachePath, imageId)
-
-	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-		err = os.MkdirAll(cachePath, os.ModePerm)
-		if err != nil {
-			return err
-		}
-
-		log.Infoln("creating distribution using image rootfs")
-		log.Debugf("storing distribution at '%s'", archivePath)
-
-		err = docker.ImageExport(imageId, archivePath)
-		if err != nil {
-			return err
-		}
-	}
-
-	workspacePath := filepath.Join(weaselPath, "workspaces", imageName, imageId)
-
 	if !envExists {
+		imageRef, err := name.ParseReference(config.Environments[cmd.EnvName].Image)
+		if err != nil {
+			return err
+		}
+		image, err := remote.Image(imageRef)
+		if err != nil {
+			return err
+		}
+		imageDigest, err := image.Digest()
+		if err != nil {
+			return err
+		}
+
+		weaselPath := filepath.Join(filepath.Dir(configPath), ".weasel")
+		cachePath := filepath.Join(weaselPath, "cache", imageRef.Context().Name())
+		archivePath := filepath.Join(cachePath, imageDigest.Hex[:12]+".tar.gz")
+
+		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
+			err = os.MkdirAll(cachePath, os.ModePerm)
+			if err != nil {
+				return err
+			}
+
+			pullPath, err := ioutil.TempDir("", "weasel")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(pullPath)
+
+			tarPath := filepath.Join(pullPath, "image.tar.gz")
+
+			log.Infoln("pulling image tarball")
+			log.Debugf("storing tarball at '%s'", tarPath)
+
+			err = tarball.WriteToFile(tarPath, imageRef, image)
+			if err != nil {
+				return err
+			}
+
+			untaredPath := filepath.Join(pullPath, "content")
+			err = utils.UntarPattern(tarPath, untaredPath)
+			if err != nil {
+				return err
+			}
+
+			archivePathCandidates, err := filepath.Glob(filepath.Join(untaredPath, "*.tar.gz"))
+			if err != nil {
+				return err
+			} else if len(archivePathCandidates) == 0 {
+				return fmt.Errorf("archive not found")
+			}
+
+			utils.CopyFile(archivePathCandidates[0], archivePath)
+		} else {
+			log.Info("image tarball already found in cache")
+		}
+
+		workspacePath := filepath.Join(weaselPath, "workspaces", imageRef.Context().Name(), imageDigest.Hex[:12])
 		err = os.MkdirAll(workspacePath, os.ModePerm)
 		if err != nil {
 			return err

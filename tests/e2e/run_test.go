@@ -3,7 +3,6 @@ package e2e_test
 import (
 	"os/exec"
 
-	"github.com/codetent/weasel/pkg/weasel/store"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -21,8 +20,8 @@ var _ = Describe("Run", func() {
 	})
 
 	AfterEach(func() {
-		err := store.UnregisterDistribution("test_hub_image")
-		Expect(err).NotTo(HaveOccurred())
+		// err := store.UnregisterDistribution("test_hub_image")
+		// Expect(err).NotTo(HaveOccurred())
 
 		gexec.CleanupBuildArtifacts()
 	})

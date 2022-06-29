@@ -1,94 +1,89 @@
 package e2e_test
 
 import (
-	"os/exec"
-
-	"github.com/codetent/weasel/pkg/weasel/store"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("Build", func() {
-	var weaselPath string
+// var _ = Describe("Build", func() {
+// 	var weaselPath string
 
-	BeforeEach(func() {
-		var err error
+// 	BeforeEach(func() {
+// 		var err error
 
-		weaselPath, err = gexec.Build("github.com/codetent/weasel")
-		Expect(err).NotTo(HaveOccurred())
+// 		weaselPath, err = gexec.Build("github.com/codetent/weasel")
+// 		Expect(err).NotTo(HaveOccurred())
 
-		err = store.UnregisterDistribution("test_hub_image")
-		Expect(err).NotTo(HaveOccurred())
+// 		err = store.UnregisterDistribution("test_hub_image")
+// 		Expect(err).NotTo(HaveOccurred())
 
-		path, err := store.GetRegisteredDistribution("test_hub_image")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(path).Should(BeEmpty())
-	})
+// 		path, err := store.GetRegisteredDistribution("test_hub_image")
+// 		Expect(err).NotTo(HaveOccurred())
+// 		Expect(path).Should(BeEmpty())
+// 	})
 
-	AfterEach(func() {
-		err := store.UnregisterDistribution("test_hub_image")
-		Expect(err).NotTo(HaveOccurred())
+// 	AfterEach(func() {
+// 		err := store.UnregisterDistribution("test_hub_image")
+// 		Expect(err).NotTo(HaveOccurred())
 
-		gexec.CleanupBuildArtifacts()
-	})
+// 		gexec.CleanupBuildArtifacts()
+// 	})
 
-	Describe("Build distribution", func() {
-		It("from docker hub image", func() {
-			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "hub:busybox")
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-			Expect(err).NotTo(HaveOccurred())
+// 	Describe("Build distribution", func() {
+// 		It("from docker hub image", func() {
+// 			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "hub:busybox")
+// 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+// 			Expect(err).NotTo(HaveOccurred())
 
-			session.Wait(30)
-			Expect(session).Should(gexec.Exit(0))
+// 			session.Wait(30)
+// 			Expect(session).Should(gexec.Exit(0))
 
-			path, err := store.GetRegisteredDistribution("test_hub_image")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(path).Should(BeARegularFile())
-		})
+// 			path, err := store.GetRegisteredDistribution("test_hub_image")
+// 			Expect(err).NotTo(HaveOccurred())
+// 			Expect(path).Should(BeARegularFile())
+// 		})
 
-		It("from unknown docker hub image", func() {
-			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "hub:_")
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-			Expect(err).NotTo(HaveOccurred())
+// 		It("from unknown docker hub image", func() {
+// 			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "hub:_")
+// 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+// 			Expect(err).NotTo(HaveOccurred())
 
-			session.Wait(30)
-			Expect(session).Should(gexec.Exit(1))
-			Expect(session.Out).Should(gbytes.Say(".* Error pulling image"))
-		})
+// 			session.Wait(30)
+// 			Expect(session).Should(gexec.Exit(1))
+// 			Expect(session.Out).Should(gbytes.Say(".* Error pulling image"))
+// 		})
 
-		It("from context with dockerfile", func() {
-			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "--file", "testdata/dummy.dockerfile", "context:testdata")
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-			Expect(err).NotTo(HaveOccurred())
+// 		It("from context with dockerfile", func() {
+// 			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "--file", "testdata/dummy.dockerfile", "context:testdata")
+// 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+// 			Expect(err).NotTo(HaveOccurred())
 
-			session.Wait(30)
-			Expect(session).Should(gexec.Exit(0))
+// 			session.Wait(30)
+// 			Expect(session).Should(gexec.Exit(0))
 
-			path, err := store.GetRegisteredDistribution("test_hub_image")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(path).Should(BeARegularFile())
-		})
+// 			path, err := store.GetRegisteredDistribution("test_hub_image")
+// 			Expect(err).NotTo(HaveOccurred())
+// 			Expect(path).Should(BeARegularFile())
+// 		})
 
-		It("from non-existing context", func() {
-			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "context:_")
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-			Expect(err).NotTo(HaveOccurred())
+// 		It("from non-existing context", func() {
+// 			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "context:_")
+// 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+// 			Expect(err).NotTo(HaveOccurred())
 
-			session.Wait(30)
-			Expect(session).Should(gexec.Exit(1))
-			Expect(session.Out).Should(gbytes.Say(".* Error building image"))
-		})
+// 			session.Wait(30)
+// 			Expect(session).Should(gexec.Exit(1))
+// 			Expect(session.Out).Should(gbytes.Say(".* Error building image"))
+// 		})
 
-		It("from unknown specifier", func() {
-			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "_")
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-			Expect(err).NotTo(HaveOccurred())
+// 		It("from unknown specifier", func() {
+// 			cmd := exec.Command(weaselPath, "build", "--tag", "test_hub_image", "_")
+// 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+// 			Expect(err).NotTo(HaveOccurred())
 
-			session.Wait(30)
-			Expect(session).Should(gexec.Exit(1))
-			Expect(session.Out).Should(gbytes.Say(".* Unknown specifier _"))
-		})
-	})
-})
+// 			session.Wait(30)
+// 			Expect(session).Should(gexec.Exit(1))
+// 			Expect(session.Out).Should(gbytes.Say(".* Unknown specifier _"))
+// 		})
+// 	})
+// })
