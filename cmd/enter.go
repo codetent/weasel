@@ -32,8 +32,9 @@ import (
 )
 
 type EnterCmd struct {
-	EnvName  string
-	Recreate bool
+	EnvName      string
+	Recreate     bool
+	RegisterOnly bool
 }
 
 func NewEnterCmd() *cobra.Command {
@@ -50,6 +51,7 @@ func NewEnterCmd() *cobra.Command {
 	}
 
 	enterCmd.Flags().BoolVarP(&cmd.Recreate, "recreate", "r", false, "Recreate environment")
+	enterCmd.Flags().BoolVar(&cmd.RegisterOnly, "register", false, "Only register environment without entering it")
 	return enterCmd
 }
 
@@ -141,6 +143,10 @@ func (cmd *EnterCmd) Run() error {
 		} else {
 			return fmt.Errorf("foreign virtual disk in cache at %s", workspaceVhdx)
 		}
+	}
+
+	if cmd.RegisterOnly {
+		return nil
 	}
 
 	_, err = wsllib.WslLaunchInteractive(distName, "", true)

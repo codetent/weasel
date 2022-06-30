@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestSystem(t *testing.T) {
+func TestE2e(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "System Suite")
+	RunSpecs(t, "E2e Suite")
 }
