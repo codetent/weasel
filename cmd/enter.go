@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/codetent/weasel/pkg/weasel/config"
 	"github.com/codetent/weasel/pkg/weasel/oci"
@@ -98,7 +99,11 @@ func (cmd *EnterCmd) Run() error {
 		}
 		image, err := remote.Image(imageRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 		if err != nil {
-			return err
+			if strings.Contains(err.Error(), "404") {
+				return fmt.Errorf("requested image %s not found", imageRawRef)
+			} else {
+				return err
+			}
 		}
 		imageDigest, err := image.Digest()
 		if err != nil {

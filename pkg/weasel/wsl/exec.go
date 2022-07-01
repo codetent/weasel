@@ -18,8 +18,10 @@ package wsl
 import (
 	"fmt"
 	"os/exec"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/yuk7/wsllib-go"
 )
 
 func _CreateWSLCommand(arg ...string) *exec.Cmd {
@@ -37,5 +39,23 @@ func Import(id string, workspace string, archive string) error {
 	}
 
 	log.Debug(out)
+	return nil
+}
+
+func ExecuteSilently(id string, cmd string) error {
+	devNull := syscall.Handle(0)
+	handle, err := wsllib.WslLaunch(id, cmd, false, devNull, devNull, devNull)
+	if err != nil {
+		return err
+	}
+
+	var exitCode uint32
+	syscall.WaitForSingleObject(handle, syscall.INFINITE)
+	syscall.GetExitCodeProcess(handle, &exitCode)
+
+	if exitCode != 0 {
+		return fmt.Errorf("command failed with code %d", exitCode)
+	}
+
 	return nil
 }

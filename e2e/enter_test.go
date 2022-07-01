@@ -5,11 +5,15 @@ import (
 	"os/exec"
 
 	"github.com/codetent/weasel/e2e/helper"
+	"github.com/codetent/weasel/pkg/weasel/wsl"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"github.com/yuk7/wsllib-go"
 )
+
+const DEFAULT_TIMEOUT = 30
 
 var _ = Describe("enter", func() {
 	var weaselPath string
@@ -30,7 +34,7 @@ var _ = Describe("enter", func() {
 		session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(session.Wait()).Should(gexec.Exit(1))
+		Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(1))
 		Expect(session.Err).Should(gbytes.Say("configuration not found"))
 	})
 
@@ -44,12 +48,12 @@ var _ = Describe("enter", func() {
 		session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(session.Wait()).Should(gexec.Exit(1))
+		Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(1))
 		Expect(session.Err).Should(gbytes.Say("undefined environment foo"))
 	})
 
-	It("should successfully register a defined environment", func() {
-		dir, err := helper.CreateConfigWorkspace("testdata/config/v1alpha1/foo.yml")
+	It("should fail registering an environment with an invalid image", func() {
+		dir, err := helper.CreateConfigWorkspace("testdata/config/v1alpha1/invalid.yml")
 		Expect(err).NotTo(HaveOccurred())
 		defer os.RemoveAll(dir)
 
@@ -58,6 +62,66 @@ var _ = Describe("enter", func() {
 		session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(session.Wait()).Should(gexec.Exit(0))
+		Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(1))
+		Expect(session.Err).Should(gbytes.Say("requested image _invalid_:foo not found"))
+	})
+
+	Context("When a defined environment is successfully registered", func() {
+		var workspace string
+
+		BeforeEach(func() {
+			var err error
+
+			workspace, err = helper.CreateConfigWorkspace("testdata/config/v1alpha1/foo.yml")
+			Expect(err).NotTo(HaveOccurred())
+
+			cmd := exec.Command(weaselPath, "enter", "foo", "--register")
+			cmd.Dir = workspace
+			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
+			Expect(wsllib.WslIsDistributionRegistered("weasel-foo")).Should(BeTrue())
+		})
+
+		AfterEach(func() {
+			wsllib.WslUnregisterDistribution("weasel-foo")
+			os.RemoveAll(workspace)
+		})
+
+		It("should be accessible", func() {
+			err := wsl.ExecuteSilently("weasel-foo", "echo foo")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should not be recreated", func() {
+			err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
+			Expect(err).NotTo(HaveOccurred())
+
+			cmd := exec.Command(weaselPath, "enter", "foo", "--register")
+			cmd.Dir = workspace
+			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
+
+			err = wsl.ExecuteSilently("weasel-foo", "test -f /marker")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("can be recreated", func() {
+			err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
+			Expect(err).NotTo(HaveOccurred())
+
+			cmd := exec.Command(weaselPath, "enter", "foo", "--register", "--recreate")
+			cmd.Dir = workspace
+			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
+
+			err = wsl.ExecuteSilently("weasel-foo", "test ! -f /marker")
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 })

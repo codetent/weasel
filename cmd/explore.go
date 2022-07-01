@@ -17,9 +17,9 @@ package cmd
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/codetent/weasel/pkg/weasel/config"
+	"github.com/codetent/weasel/pkg/weasel/wsl"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/yuk7/wsllib-go"
@@ -70,7 +70,6 @@ func (cmd *ExploreCmd) Run() error {
 		return fmt.Errorf("environment %s not available. Enter it first", cmd.EnvName)
 	}
 
-	devNull := syscall.Handle(0)
-	_, err = wsllib.WslLaunch(distName, "explorer.exe .", false, devNull, devNull, devNull)
+	err = wsl.ExecuteSilently(distName, "explorer.exe .")
 	return err
 }
