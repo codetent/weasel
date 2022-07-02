@@ -13,15 +13,17 @@ import (
 	"github.com/yuk7/wsllib-go"
 )
 
-const DEFAULT_TIMEOUT = 30
-
-var _ = Describe("enter", func() {
+var _ = Describe("enter", Ordered, func() {
 	var weaselPath string
 
 	BeforeEach(func() {
 		var err error
 		weaselPath, err = gexec.Build("github.com/codetent/weasel")
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		wsllib.WslUnregisterDistribution("weasel-foo")
 	})
 
 	It("should fail if there is no configuration file", func() {
@@ -85,7 +87,6 @@ var _ = Describe("enter", func() {
 		})
 
 		AfterEach(func() {
-			wsllib.WslUnregisterDistribution("weasel-foo")
 			os.RemoveAll(workspace)
 		})
 

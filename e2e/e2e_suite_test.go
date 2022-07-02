@@ -7,6 +7,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const DEFAULT_TIMEOUT = 30
+
 func TestE2e(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "E2e Suite")
