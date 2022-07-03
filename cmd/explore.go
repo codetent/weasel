@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/codetent/weasel/pkg/weasel/config"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -50,25 +49,7 @@ func NewExploreCmd() *cobra.Command {
 }
 
 func (cmd *ExploreCmd) Run() error {
-	configFile, err := config.LocateConfigFile()
-	if err == nil {
-		log.Debugf("Configuration located at %s", configFile.Path)
-	} else {
-		return err
-	}
-
-	configContent, err := configFile.Content()
-	if err == nil {
-		log.Debug("Configuration loaded successfully")
-	} else {
-		return err
-	}
-
-	if _, ok := configContent.Environments[cmd.EnvName]; !ok {
-		return fmt.Errorf("undefined environment %s", cmd.EnvName)
-	}
-
-	distName := configContent.Name + "-" + cmd.EnvName
+	distName := cmd.EnvName
 
 	if !wsllib.WslIsDistributionRegistered(distName) {
 		return fmt.Errorf("environment %s not available. Enter it first", cmd.EnvName)

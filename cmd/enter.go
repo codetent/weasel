@@ -33,6 +33,7 @@ import (
 )
 
 type EnterCmd struct {
+	ImageRef     string
 	EnvName      string
 	Recreate     bool
 	RegisterOnly bool
@@ -44,9 +45,16 @@ func NewEnterCmd() *cobra.Command {
 	enterCmd := &cobra.Command{
 		Use:   "enter",
 		Short: "Enter environment",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
-			cmd.EnvName = args[0]
+			cmd.ImageRef = args[0]
+
+			if len(args) > 1 {
+				cmd.EnvName = args[1]
+			} else {
+				cmd.EnvName = ""
+			}
+
 			return cmd.Run()
 		},
 	}
@@ -57,25 +65,17 @@ func NewEnterCmd() *cobra.Command {
 }
 
 func (cmd *EnterCmd) Run() error {
-	configFile, err := config.LocateConfigFile()
-	if err == nil {
-		log.Debugf("Configuration located at %s", configFile.Path)
-	} else {
+	imageRef, err := name.ParseReference(cmd.ImageRef)
+	if err != nil {
 		return err
 	}
 
-	configContent, err := configFile.Content()
-	if err == nil {
-		log.Debug("Configuration loaded successfully")
-	} else {
-		return err
+	distName := cmd.EnvName
+	if distName == "" {
+		imageRefParts := strings.Split(imageRef.Context().Name(), "/")
+		distName = imageRefParts[len(imageRefParts)-1]
 	}
 
-	if _, ok := configContent.Environments[cmd.EnvName]; !ok {
-		return fmt.Errorf("undefined environment %s", cmd.EnvName)
-	}
-
-	distName := configContent.Name + "-" + cmd.EnvName
 	envExists := wsllib.WslIsDistributionRegistered(distName)
 
 	if envExists && cmd.Recreate {
@@ -92,15 +92,10 @@ func (cmd *EnterCmd) Run() error {
 	if envExists {
 		log.Debug("Loading already existing environment")
 	} else {
-		imageRawRef := configContent.Environments[cmd.EnvName].Image
-		imageRef, err := name.ParseReference(imageRawRef)
-		if err != nil {
-			return err
-		}
 		image, err := remote.Image(imageRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 		if err != nil {
 			if strings.Contains(err.Error(), "404") {
-				return fmt.Errorf("requested image %s not found", imageRawRef)
+				return fmt.Errorf("requested image %s not found", cmd.ImageRef)
 			} else {
 				return err
 			}
@@ -112,17 +107,20 @@ func (cmd *EnterCmd) Run() error {
 
 		log.Infof("Setting up environment using %s:%s", imageRef.Context().Name(), imageDigest.Hex)
 
-		archivePath := config.GetArchiveCachePath(configFile, imageRef, imageDigest)
+		imagePath, err := config.GetImageCachePath(imageRef, imageDigest)
+		if err != nil {
+			return err
+		}
 
-		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-			err = os.MkdirAll(filepath.Dir(archivePath), os.ModePerm)
+		if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+			err = os.MkdirAll(filepath.Dir(imagePath), os.ModePerm)
 			if err != nil {
 				return err
 			}
 
 			log.Debug("Exporting image rootfs as tarball")
 
-			err = oci.ExportRootFs(image, imageRef, archivePath)
+			err = oci.ExportRootFs(image, imageRef, imagePath)
 			if err != nil {
 				return err
 			}
@@ -130,7 +128,10 @@ func (cmd *EnterCmd) Run() error {
 			log.Debug("Image tarball already found in cache")
 		}
 
-		workspacePath := config.GetWorkspaceCachePath(configFile, imageRef, imageDigest)
+		workspacePath, err := config.GetWorkspaceCachePath(imageRef, imageDigest)
+		if err != nil {
+			return err
+		}
 		workspaceVhdx := filepath.Join(workspacePath, "ext4.vhdx")
 
 		if _, err := os.Stat(workspaceVhdx); os.IsNotExist(err) {
@@ -141,7 +142,7 @@ func (cmd *EnterCmd) Run() error {
 
 			log.Infof("Importing environment into WSL as %s", distName)
 
-			err = wsl.Import(distName, workspacePath, archivePath)
+			err = wsl.Import(distName, workspacePath, imagePath)
 			if err != nil {
 				return err
 			}

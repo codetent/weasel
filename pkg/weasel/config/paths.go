@@ -1,37 +1,58 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
-func GetConfigRoot(file *ConfigFile) string {
-	return filepath.Dir(file.Path)
+func GetWeaselDir() (string, error) {
+	root := os.Getenv("WEASEL_HOME")
+	if root == "" {
+		var err error
+		root, err = os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return filepath.Join(root, "weasel"), nil
 }
 
-func GetWeaselDir(file *ConfigFile) string {
-	root := GetConfigRoot(file)
-	return filepath.Join(root, ".weasel")
+func GetImageCacheRoot() (string, error) {
+	weasel, err := GetWeaselDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(weasel, "images"), nil
 }
 
-func GetArchiveCacheRoot(file *ConfigFile) string {
-	weasel := GetWeaselDir(file)
-	return filepath.Join(weasel, "cache")
+func GetImageCachePath(ref name.Reference, digest v1.Hash) (string, error) {
+	root, err := GetImageCacheRoot()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(root, ref.Context().Name(), digest.Hex[:12]+".tar.gz"), nil
 }
 
-func GetArchiveCachePath(file *ConfigFile, ref name.Reference, digest v1.Hash) string {
-	root := GetArchiveCacheRoot(file)
-	return filepath.Join(root, ref.Context().Name(), digest.Hex[:12]+".tar.gz")
+func GetWorkspaceCacheRoot() (string, error) {
+	weasel, err := GetWeaselDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(weasel, "workspaces"), nil
 }
 
-func GetWorkspaceCacheRoot(file *ConfigFile) string {
-	weasel := GetWeaselDir(file)
-	return filepath.Join(weasel, "workspaces")
-}
+func GetWorkspaceCachePath(ref name.Reference, digest v1.Hash) (string, error) {
+	root, err := GetWorkspaceCacheRoot()
+	if err != nil {
+		return "", err
+	}
 
-func GetWorkspaceCachePath(file *ConfigFile, ref name.Reference, digest v1.Hash) string {
-	root := GetWorkspaceCacheRoot(file)
-	return filepath.Join(root, ref.Context().Name(), digest.Hex[:12])
+	return filepath.Join(root, ref.Context().Name(), digest.Hex[:12]), nil
 }

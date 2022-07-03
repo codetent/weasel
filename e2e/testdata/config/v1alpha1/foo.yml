@@ -1,6 +1,0 @@
-version: v1alpha1
-name: weasel
-
-environments:
-  foo:
-    image: busybox:latest

@@ -1,9 +1,6 @@
 package e2e_test
 
 import (
-	"os"
-	"os/exec"
-
 	"github.com/codetent/weasel/e2e/helper"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,53 +11,14 @@ import (
 )
 
 var _ = Describe("enter", Ordered, func() {
-	var weaselPath string
-
-	BeforeEach(func() {
-		var err error
-		weaselPath, err = gexec.Build("github.com/codetent/weasel")
-		Expect(err).NotTo(HaveOccurred())
-	})
-
 	AfterEach(func() {
-		wsllib.WslUnregisterDistribution("weasel-foo")
-	})
-
-	It("should fail if there is no configuration file", func() {
-		dir, err := helper.CreateEmptyWorkspace()
-		Expect(err).NotTo(HaveOccurred())
-		defer os.RemoveAll(dir)
-
-		cmd := exec.Command(weaselPath, "enter", "foo")
-		cmd.Dir = dir
-		session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-
-		Expect(err).NotTo(HaveOccurred())
-		Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(1))
-		Expect(session.Err).Should(gbytes.Say("configuration not found"))
-	})
-
-	It("should fail if the environment is undefined", func() {
-		dir, err := helper.CreateConfigWorkspace("testdata/config/v1alpha1/empty.yml")
-		Expect(err).NotTo(HaveOccurred())
-		defer os.RemoveAll(dir)
-
-		cmd := exec.Command(weaselPath, "enter", "foo")
-		cmd.Dir = dir
-		session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-
-		Expect(err).NotTo(HaveOccurred())
-		Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(1))
-		Expect(session.Err).Should(gbytes.Say("undefined environment foo"))
+		wsllib.WslUnregisterDistribution("busybox")
 	})
 
 	It("should fail registering an environment with an invalid image", func() {
-		dir, err := helper.CreateConfigWorkspace("testdata/config/v1alpha1/invalid.yml")
+		cmd, err := helper.NewWeaselCommand("enter", "_invalid_:foo", "--register")
 		Expect(err).NotTo(HaveOccurred())
-		defer os.RemoveAll(dir)
 
-		cmd := exec.Command(weaselPath, "enter", "foo", "--register")
-		cmd.Dir = dir
 		session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
 		Expect(err).NotTo(HaveOccurred())
@@ -69,59 +27,49 @@ var _ = Describe("enter", Ordered, func() {
 	})
 
 	Context("When a defined environment is successfully registered", func() {
-		var workspace string
-
 		BeforeEach(func() {
-			var err error
-
-			workspace, err = helper.CreateConfigWorkspace("testdata/config/v1alpha1/foo.yml")
+			cmd, err := helper.NewWeaselCommand("enter", "busybox", "--register")
 			Expect(err).NotTo(HaveOccurred())
 
-			cmd := exec.Command(weaselPath, "enter", "foo", "--register")
-			cmd.Dir = workspace
 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-
 			Expect(err).NotTo(HaveOccurred())
 			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
-			Expect(wsllib.WslIsDistributionRegistered("weasel-foo")).Should(BeTrue())
-		})
 
-		AfterEach(func() {
-			os.RemoveAll(workspace)
+			Expect(wsllib.WslIsDistributionRegistered("busybox")).Should(BeTrue())
 		})
 
 		It("should be accessible", func() {
-			_, err := wsl.ExecuteSilently("weasel-foo", "echo foo")
+			_, err := wsl.ExecuteSilently("busybox", "echo foo")
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should not be recreated", func() {
-			_, err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
+			_, err := wsl.ExecuteSilently("busybox", "touch /marker")
 			Expect(err).NotTo(HaveOccurred())
 
-			cmd := exec.Command(weaselPath, "enter", "foo", "--register")
-			cmd.Dir = workspace
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+			cmd, err := helper.NewWeaselCommand("enter", "busybox", "--register")
+			Expect(err).NotTo(HaveOccurred())
 
+			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
 
-			_, err = wsl.ExecuteSilently("weasel-foo", "test -f /marker")
+			_, err = wsl.ExecuteSilently("busybox", "test -f /marker")
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("can be recreated", func() {
-			_, err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
+			_, err := wsl.ExecuteSilently("busybox", "touch /marker")
 			Expect(err).NotTo(HaveOccurred())
 
-			cmd := exec.Command(weaselPath, "enter", "foo", "--register", "--recreate")
-			cmd.Dir = workspace
-			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+			cmd, err := helper.NewWeaselCommand("enter", "busybox", "--register", "--recreate")
+			Expect(err).NotTo(HaveOccurred())
 
+			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
 
-			_, err = wsl.ExecuteSilently("weasel-foo", "test ! -f /marker")
+			_, err = wsl.ExecuteSilently("busybox", "test ! -f /marker")
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
