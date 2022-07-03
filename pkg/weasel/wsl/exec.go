@@ -17,6 +17,8 @@ package wsl
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"syscall"
 
@@ -42,11 +44,21 @@ func Import(id string, workspace string, archive string) error {
 	return nil
 }
 
-func ExecuteSilently(id string, cmd string) error {
-	devNull := syscall.Handle(0)
-	handle, err := wsllib.WslLaunch(id, cmd, false, devNull, devNull, devNull)
+func ExecuteSilently(id string, cmd string) (string, error) {
+	outFile, err := ioutil.TempFile("", "out")
 	if err != nil {
-		return err
+		return "", err
+	}
+	defer os.Remove(outFile.Name())
+
+	outHandle := syscall.Handle(0)
+	p, _ := syscall.GetCurrentProcess()
+	syscall.DuplicateHandle(p, syscall.Handle(outFile.Fd()), p, &outHandle, 0, true, syscall.DUPLICATE_SAME_ACCESS)
+
+	nullHandle := syscall.Handle(0)
+	handle, err := wsllib.WslLaunch(id, cmd, false, nullHandle, outHandle, outHandle)
+	if err != nil {
+		return "", err
 	}
 
 	var exitCode uint32
@@ -54,8 +66,13 @@ func ExecuteSilently(id string, cmd string) error {
 	syscall.GetExitCodeProcess(handle, &exitCode)
 
 	if exitCode != 0 {
-		return fmt.Errorf("command failed with code %d", exitCode)
+		return "", fmt.Errorf("command failed with code %d", exitCode)
 	}
 
-	return nil
+	outBytes, err := ioutil.ReadFile(outFile.Name())
+	if err != nil {
+		return "", err
+	}
+
+	return string(outBytes), nil
 }

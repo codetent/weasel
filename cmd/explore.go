@@ -17,6 +17,8 @@ package cmd
 
 import (
 	"fmt"
+	"os/exec"
+	"strings"
 
 	"github.com/codetent/weasel/pkg/weasel/config"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
@@ -26,7 +28,8 @@ import (
 )
 
 type ExploreCmd struct {
-	EnvName string
+	EnvName  string
+	ShowOnly bool
 }
 
 func NewExploreCmd() *cobra.Command {
@@ -42,6 +45,7 @@ func NewExploreCmd() *cobra.Command {
 		},
 	}
 
+	exploreCmd.Flags().BoolVar(&cmd.ShowOnly, "show-only", false, "Show directory path only")
 	return exploreCmd
 }
 
@@ -70,6 +74,17 @@ func (cmd *ExploreCmd) Run() error {
 		return fmt.Errorf("environment %s not available. Enter it first", cmd.EnvName)
 	}
 
-	err = wsl.ExecuteSilently(distName, "explorer.exe .")
-	return err
+	distPath, err := wsl.ExecuteSilently(distName, "wslpath -w .")
+	if err != nil {
+		return err
+	}
+	distPath = strings.TrimSpace(distPath)
+
+	if cmd.ShowOnly {
+		log.Info(distPath)
+		return nil
+	}
+
+	proc := exec.Command("explorer.exe " + distPath)
+	return proc.Run()
 }

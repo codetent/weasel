@@ -91,12 +91,12 @@ var _ = Describe("enter", Ordered, func() {
 		})
 
 		It("should be accessible", func() {
-			err := wsl.ExecuteSilently("weasel-foo", "echo foo")
+			_, err := wsl.ExecuteSilently("weasel-foo", "echo foo")
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should not be recreated", func() {
-			err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
+			_, err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
 			Expect(err).NotTo(HaveOccurred())
 
 			cmd := exec.Command(weaselPath, "enter", "foo", "--register")
@@ -106,12 +106,12 @@ var _ = Describe("enter", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
 
-			err = wsl.ExecuteSilently("weasel-foo", "test -f /marker")
+			_, err = wsl.ExecuteSilently("weasel-foo", "test -f /marker")
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("can be recreated", func() {
-			err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
+			_, err := wsl.ExecuteSilently("weasel-foo", "touch /marker")
 			Expect(err).NotTo(HaveOccurred())
 
 			cmd := exec.Command(weaselPath, "enter", "foo", "--register", "--recreate")
@@ -121,7 +121,7 @@ var _ = Describe("enter", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(session.Wait(DEFAULT_TIMEOUT)).Should(gexec.Exit(0))
 
-			err = wsl.ExecuteSilently("weasel-foo", "test ! -f /marker")
+			_, err = wsl.ExecuteSilently("weasel-foo", "test ! -f /marker")
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
