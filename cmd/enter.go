@@ -23,6 +23,7 @@ import (
 
 	"github.com/codetent/weasel/pkg/weasel/config"
 	"github.com/codetent/weasel/pkg/weasel/oci"
+	"github.com/codetent/weasel/pkg/weasel/plugin"
 	"github.com/codetent/weasel/pkg/weasel/wsl"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -153,6 +154,11 @@ func (cmd *EnterCmd) Run() error {
 
 	if cmd.RegisterOnly {
 		return nil
+	}
+
+	err = plugin.EnterAll(distName)
+	if err != nil {
+		return err
 	}
 
 	_, err = wsllib.WslLaunchInteractive(distName, "", true)
